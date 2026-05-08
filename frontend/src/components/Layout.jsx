@@ -15,6 +15,9 @@ export default function Layout() {
 
   return (
     <div>
+      <div style={orb1Style} />
+      <div style={orb2Style} />
+      <div style={orb3Style} />
       <nav style={navStyle}>
         <Link to="/" style={linkStyle}>📚 Notițe</Link>
         <div style={{ flex: 1 }} />
@@ -22,7 +25,8 @@ export default function Layout() {
           <>
             <span>Salut, <strong>{user.name || user.username}</strong></span>
             <Link to="/upload" style={linkStyle}>+ Notiță</Link>
-            {user.username === 'Admin' && (
+            <Link to="/settings" style={linkStyle}>Setări</Link>
+            {user.role === 'ADMIN' && (
               <Link to="/admin" style={{ ...linkStyle, color: '#cc6600' }}>⚙ Admin</Link>
             )}
             <button onClick={handleLogout} style={buttonStyle}>Logout</button>
@@ -35,32 +39,72 @@ export default function Layout() {
         )}
       </nav>
       <main style={{ maxWidth: 900, margin: '0 auto', padding: 24 }}>
-        <Outlet />
-      </main>
+  <Outlet />
+</main>
     </div>
   );
 }
 
 // TODO: mută stilurile într-un fișier .css sau folosește o bibliotecă (ex: CSS modules).
 // Inline styles sunt OK pentru skeleton, dar prost pentru proiect mare.
+const orbBase = {
+  position: 'fixed',
+  borderRadius: '50%',
+  pointerEvents: 'none',
+  zIndex: 0,
+  filter: 'blur(60px)',
+};
+
+const orb1Style = {
+  ...orbBase,
+  width: 340,
+  height: 240,
+  top: '30%',
+  left: '5%',
+  background: 'rgba(110, 30, 220, 0.55)',
+  animation: 'orbPulse1 7s ease-in-out infinite',
+};
+
+const orb2Style = {
+  ...orbBase,
+  width: 280,
+  height: 200,
+  top: '10%',
+  right: '8%',
+  background: 'rgba(30, 60, 210, 0.5)',
+  animation: 'orbPulse2 10s ease-in-out infinite',
+};
+
+const orb3Style = {
+  ...orbBase,
+  width: 260,
+  height: 200,
+  bottom: '15%',
+  right: '20%',
+  background: 'rgba(80, 10, 180, 0.45)',
+  animation: 'orbPulse3 8s ease-in-out infinite',
+};
+
 const navStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: 16,
   padding: '12px 24px',
-  borderBottom: '1px solid #e0e0e0',
-  background: '#fafafa',
+  borderBottom: '1px solid rgba(120, 60, 200, 0.3)',
+  background: 'rgba(20, 8, 50, 0.9)',
+  backdropFilter: 'blur(8px)',
 };
 
 const linkStyle = {
   textDecoration: 'none',
-  color: '#333',
+  color: '#c9a8ff',
 };
 
 const buttonStyle = {
   padding: '6px 12px',
   cursor: 'pointer',
-  border: '1px solid #ccc',
-  background: 'white',
+  border: '1px solid rgba(150, 80, 255, 0.4)',
+  background: 'rgba(80, 20, 160, 0.3)',
   borderRadius: 4,
+  color: '#c9a8ff',
 };

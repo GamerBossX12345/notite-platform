@@ -13,9 +13,12 @@ const NOTE_TYPES = [
   { value: 'EXERCITII', label: 'Exerciții' },
   { value: 'FISA', label: 'Fișă' },
   { value: 'HARTA_CONCEPTUALA', label: 'Hartă conceptuală' },
+  { value: 'FORMULE', label: 'Formule' },
 ];
 
 const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
+
+const RANK_MEDALS = ['🥇', '🥈', '🥉'];
 
 export default function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -23,6 +26,13 @@ export default function HomePage() {
   const [result, setResult] = useState({ notes: [], total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
+
+  useEffect(() => {
+    api.get('/leaderboard', { params: { limit: 10 } })
+      .then(res => setLeaderboard(res.data))
+      .catch(() => {});
+  }, []);
 
   const subject    = searchParams.get('subject') || '';
   const gradeLevel = searchParams.get('gradeLevel') || '';
@@ -47,7 +57,6 @@ export default function HomePage() {
     }, { replace: true });
   }
 
-  // Sincronizează câmpul de căutare cu URL-ul, cu debounce
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearchParams(prev => {
@@ -70,93 +79,121 @@ export default function HomePage() {
   }, [searchParams.toString()]);
 
   return (
-    <div>
-      <h1>Notițe recente</h1>
+    <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+      {/* Main content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h1>Notițe recente</h1>
 
-      <div style={filterBarStyle}>
-        <input
-          type="search"
-          placeholder="Caută notițe..."
-          value={searchInput}
-          onChange={e => setSearchInput(e.target.value)}
-          style={{ ...selectStyle, flex: 1, minWidth: 160 }}
-        />
-        <select value={subject} onChange={e => setParam('subject', e.target.value)} style={selectStyle}>
-          <option value="">Toate materiile</option>
-          {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select value={gradeLevel} onChange={e => setParam('gradeLevel', e.target.value)} style={selectStyle}>
-          <option value="">Toate clasele</option>
-          {GRADE_LEVELS.map(g => <option key={g} value={g}>Clasa a {g}-a</option>)}
-        </select>
-        <select value={type} onChange={e => setParam('type', e.target.value)} style={selectStyle}>
-          <option value="">Toate tipurile</option>
-          {NOTE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-        </select>
-        <select value={sort} onChange={e => setParam('sort', e.target.value)} style={selectStyle}>
-          <option value="recent">Cele mai recente</option>
-          <option value="popular">Cele mai populare</option>
-          <option value="rating">Cel mai bine votate</option>
-        </select>
+        <div style={filterBarStyle}>
+          <input
+            type="search"
+            placeholder="Caută notițe..."
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            style={{ ...selectStyle, flex: 1, minWidth: 160 }}
+          />
+          <select value={subject} onChange={e => setParam('subject', e.target.value)} style={selectStyle}>
+            <option value="">Toate materiile</option>
+            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <select value={gradeLevel} onChange={e => setParam('gradeLevel', e.target.value)} style={selectStyle}>
+            <option value="">Toate clasele</option>
+            {GRADE_LEVELS.map(g => <option key={g} value={g}>Clasa a {g}-a</option>)}
+          </select>
+          <select value={type} onChange={e => setParam('type', e.target.value)} style={selectStyle}>
+            <option value="">Toate tipurile</option>
+            {NOTE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
+          <select value={sort} onChange={e => setParam('sort', e.target.value)} style={selectStyle}>
+            <option value="recent">Cele mai recente</option>
+            <option value="popular">Cele mai populare</option>
+            <option value="rating">Cel mai bine votate</option>
+          </select>
+        </div>
+
+        {loading && <p>Se încarcă...</p>}
+        {error && <p style={{ color: 'red' }}>Eroare: {error}</p>}
+
+        {!loading && !error && (
+          <>
+            <p style={{ color: '#666', fontSize: 14, marginBottom: 12 }}>
+              {result.total} {result.total === 1 ? 'notiță găsită' : 'notițe găsite'}
+            </p>
+
+            {result.notes.length === 0 ? (
+              <p>Nicio notiță găsită. Fii primul!</p>
+            ) : (
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {result.notes.map(note => (
+                  <li key={note.id} style={cardStyle}>
+                    <Link to={`/notes/${note.id}`} style={{ textDecoration: 'none', color: '#333' }}>
+                      <h3 style={{ margin: 0 }}>{note.title}</h3>
+                    </Link>
+                    <p style={{ margin: '4px 0', color: '#666', fontSize: 14 }}>
+                      {note.subject} • clasa a {note.gradeLevel}-a • {note.type}
+                    </p>
+                    <p style={{ margin: 0, fontSize: 13, color: '#888' }}>
+                      de{' '}
+                      <Link to={`/profile/${note.author.username}`} style={{ color: '#555' }}>
+                        {note.author.username}
+                      </Link>
+                      {note.ratingCount > 0 && (
+                        <> • ⭐ {note.avgRating.toFixed(1)} ({note.ratingCount} voturi)</>
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {result.totalPages > 1 && (
+              <div style={paginationStyle}>
+                <button
+                  onClick={() => setPage(page - 1)}
+                  disabled={page <= 1}
+                  style={pageButtonStyle}
+                >
+                  ‹ Anterior
+                </button>
+                <span style={{ padding: '6px 12px', color: '#666', fontSize: 14 }}>
+                  Pagina {page} din {result.totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= result.totalPages}
+                  style={pageButtonStyle}
+                >
+                  Următor ›
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {loading && <p>Se încarcă...</p>}
-      {error && <p style={{ color: 'red' }}>Eroare: {error}</p>}
-
-      {!loading && !error && (
-        <>
-          <p style={{ color: '#666', fontSize: 14, marginBottom: 12 }}>
-            {result.total} {result.total === 1 ? 'notiță găsită' : 'notițe găsite'}
-          </p>
-
-          {result.notes.length === 0 ? (
-            <p>Nicio notiță găsită. Fii primul!</p>
-          ) : (
-            <ul style={{ listStyle: 'none', padding: 0 }}>
-              {result.notes.map(note => (
-                <li key={note.id} style={cardStyle}>
-                  <Link to={`/notes/${note.id}`} style={{ textDecoration: 'none', color: '#333' }}>
-                    <h3 style={{ margin: 0 }}>{note.title}</h3>
-                  </Link>
-                  <p style={{ margin: '4px 0', color: '#666', fontSize: 14 }}>
-                    {note.subject} • clasa a {note.gradeLevel}-a • {note.type}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 13, color: '#888' }}>
-                    de{' '}
-                    <Link to={`/profile/${note.author.username}`} style={{ color: '#555' }}>
-                      {note.author.username}
-                    </Link>
-                    {note.ratingCount > 0 && (
-                      <> • ⭐ {note.avgRating.toFixed(1)} ({note.ratingCount} voturi)</>
-                    )}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {result.totalPages > 1 && (
-            <div style={paginationStyle}>
-              <button
-                onClick={() => setPage(page - 1)}
-                disabled={page <= 1}
-                style={pageButtonStyle}
-              >
-                ‹ Anterior
-              </button>
-              <span style={{ padding: '6px 12px', color: '#666', fontSize: 14 }}>
-                Pagina {page} din {result.totalPages}
-              </span>
-              <button
-                onClick={() => setPage(page + 1)}
-                disabled={page >= result.totalPages}
-                style={pageButtonStyle}
-              >
-                Următor ›
-              </button>
-            </div>
-          )}
-        </>
+      {/* Leaderboard sidebar */}
+      {leaderboard.length > 0 && (
+        <div style={leaderboardStyle}>
+          <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Top contributori</h3>
+          <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {leaderboard.map(entry => (
+              <li key={entry.id} style={leaderboardRowStyle}>
+                <span style={{ width: 24, flexShrink: 0, textAlign: 'center' }}>
+                  {RANK_MEDALS[entry.rank - 1] ?? entry.rank}
+                </span>
+                <Link
+                  to={`/profile/${entry.username}`}
+                  style={{ flex: 1, color: '#333', textDecoration: 'none', fontWeight: 500, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {entry.username}
+                </Link>
+                <span style={{ fontSize: 13, color: '#888', flexShrink: 0 }}>
+                  {entry.noteCount} notițe
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
     </div>
   );
@@ -194,4 +231,21 @@ const pageButtonStyle = {
   borderRadius: 4,
   background: 'white',
   cursor: 'pointer',
+};
+const leaderboardStyle = {
+  width: 220,
+  flexShrink: 0,
+  border: '1px solid #e0e0e0',
+  borderRadius: 8,
+  padding: 16,
+  background: '#fafafa',
+  position: 'sticky',
+  top: 24,
+};
+const leaderboardRowStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '6px 0',
+  borderBottom: '1px solid #f0f0f0',
 };

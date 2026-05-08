@@ -5,7 +5,7 @@ import { AppError } from '../middleware/errorHandler.js';
 import { validateRequest, CreateNoteSchema, UpdateNoteSchema, DuplicateCheckSchema } from '../middleware/validators.js';
 import { fingerprintText, compareFingerprints } from '../services/shingling.service.js';
 
-const VALID_TYPES = ['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA'];
+const VALID_TYPES = ['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA', 'FORMULE'];
 
 // GET /api/notes
 // Listare cu filtre, căutare, sortare și paginare. Public.

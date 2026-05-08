@@ -20,7 +20,9 @@ model User {
   school       String?
   grade        Int?
   bio            String?
+  showName       Boolean   @default(true)
   reputation     Int       @default(0)
+  role           Role      @default(USER)
   suspendedUntil DateTime?
   createdAt      DateTime  @default(now())
 
@@ -65,11 +67,17 @@ model Note {
   @@index([authorId])
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 enum NoteType {
   REZUMAT
   EXERCITII
   FISA
   HARTA_CONCEPTUALA
+  FORMULE
 }
 
 model Rating {

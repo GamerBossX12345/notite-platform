@@ -8,6 +8,7 @@ import NotePage from './pages/NotePage.jsx';
 import UploadPage from './pages/UploadPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import AdminPage from './pages/AdminPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/profile/:username" element={<ProfilePage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

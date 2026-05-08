@@ -88,7 +88,7 @@ export default function AdminPage() {
   const [editForm, setEditForm]     = useState({});
   const [saving, setSaving]         = useState(false);
 
-  const isAdmin = user?.username === 'Admin';
+  const isAdmin = user?.role === 'ADMIN';
   const pendingCount = reports.filter(r => r.status === 'PENDING').length;
 
   useEffect(() => {
@@ -316,7 +316,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredUsers.map(u => (
-                    <tr key={u.id} style={{ background: u.username === 'Admin' ? '#fffbea' : 'transparent' }}>
+                    <tr key={u.id} style={{ background: u.role === 'ADMIN' ? '#fffbea' : 'transparent' }}>
                       <Td>{u.name || <Dash />}</Td>
                       <Td><strong>{u.username}</strong></Td>
                       <Td>{u.email}</Td>
@@ -328,7 +328,7 @@ export default function AdminPage() {
                       <Td>{new Date(u.createdAt).toLocaleDateString('ro-RO')}</Td>
                       <Td>
                         <button onClick={() => openEditUser(u)} style={btnEdit}>Editează</button>
-                        {u.username !== 'Admin' && (
+                        {u.role !== 'ADMIN' && (
                           <button onClick={() => deleteUser(u.id)} style={btnDelete}>Șterge</button>
                         )}
                       </Td>

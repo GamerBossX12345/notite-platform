@@ -17,9 +17,9 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
+  color-scheme: dark;
+  color: #d0c8e8;
+  background: transparent;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -30,47 +30,109 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+/* Orbs in Layout */
+@keyframes orbPulse1 {
+  0%, 100% { opacity: 0.45; transform: scale(1) translate(0, 0); }
+  33%       { opacity: 0.80; transform: scale(1.15) translate(20px, -15px); }
+  66%       { opacity: 0.30; transform: scale(0.85) translate(-10px, 20px); }
+}
+@keyframes orbPulse2 {
+  0%, 100% { opacity: 0.40; transform: scale(1) translate(0, 0); }
+  40%       { opacity: 0.75; transform: scale(1.2) translate(-25px, 10px); }
+  70%       { opacity: 0.25; transform: scale(0.9) translate(15px, -20px); }
+}
+@keyframes orbPulse3 {
+  0%, 100% { opacity: 0.35; transform: scale(1) translate(0, 0); }
+  45%       { opacity: 0.70; transform: scale(1.1) translate(10px, -25px); }
+  80%       { opacity: 0.20; transform: scale(0.8) translate(-20px, 10px); }
+}
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+/* Pulsing glow orbs */
+@keyframes pulse1 {
+  0%, 100% { opacity: 0.08; transform: scale(1); }
+  50%       { opacity: 0.32; transform: scale(1.25); }
+}
+@keyframes pulse2 {
+  0%, 100% { opacity: 0.12; transform: scale(1.1); }
+  50%       { opacity: 0.28; transform: scale(0.85); }
+}
+@keyframes pulse3 {
+  0%, 100% { opacity: 0.06; transform: scale(0.9); }
+  60%       { opacity: 0.26; transform: scale(1.2); }
+}
+@keyframes pulse4 {
+  0%, 100% { opacity: 0.14; transform: scale(1); }
+  40%       { opacity: 0.22; transform: scale(1.3); }
+}
+@keyframes pulse5 {
+  0%, 100% { opacity: 0.05; transform: scale(1.15); }
+  55%       { opacity: 0.30; transform: scale(0.8); }
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0a0e27 0%, #1a0b2e 50%, #0d0820 100%);
+  /* ajustează culorile la ce vrei tu */
+  background-attachment: fixed; /* gradientul rămâne fix la scroll, nu se repetă */
+  color: #e0e0e0;
 }
 
 #root {
+  min-height: 100vh;
+}
+
+/* Orb container fixed behind everything */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 38% 28% at 18% 22%, rgba(120, 40, 220, 1) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 22% at 78% 12%, rgba(40, 80, 220, 1) 0%, transparent 70%),
+    radial-gradient(ellipse 26% 20% at 55% 78%, rgba(140, 20, 255, 1) 0%, transparent 70%),
+    radial-gradient(ellipse 22% 18% at 88% 65%, rgba(30, 60, 200, 1) 0%, transparent 70%),
+    radial-gradient(ellipse 20% 16% at 12% 80%, rgba(90, 10, 180, 1) 0%, transparent 70%);
+  animation: pulse1 6s ease-in-out infinite;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 28% 20% at 40% 10%, rgba(60, 20, 200, 1) 0%, transparent 70%),
+    radial-gradient(ellipse 24% 18% at 92% 40%, rgba(100, 30, 240, 1) 0%, transparent 70%),
+    radial-gradient(ellipse 32% 24% at 8% 50%, rgba(20, 50, 180, 1) 0%, transparent 70%),
+    radial-gradient(ellipse 20% 16% at 65% 90%, rgba(80, 20, 200, 1) 0%, transparent 70%);
+  animation: pulse2 9s ease-in-out infinite;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
   width: 1126px;
   max-width: 100%;
   margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  text-align: left;
+  border-inline: 1px solid rgba(100, 50, 180, 0.2);
   min-height: 100svh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(1px);
 }
 
 h1,
 h2 {
   font-family: var(--heading);
   font-weight: 500;
-  color: var(--text-h);
+  color: #e8e0ff;
 }
 
 h1 {
@@ -100,12 +162,12 @@ code,
   font-family: var(--mono);
   display: inline-flex;
   border-radius: 4px;
-  color: var(--text-h);
+  color: #e8e0ff;
 }
 
 code {
   font-size: 15px;
   line-height: 135%;
   padding: 4px 8px;
-  background: var(--code-bg);
+  background: rgba(80, 40, 140, 0.25);
 }

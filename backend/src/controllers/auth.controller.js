@@ -15,8 +15,37 @@ export async function me(req, res, next) {
       select: {
         id: true, email: true, username: true,
         name: true, school: true, grade: true,
-        reputation: true, createdAt: true,
+        reputation: true, role: true, showName: true, createdAt: true,
       },
+    });
+    if (!user) throw new AppError('Utilizator inexistent', 404);
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateSettings(req, res, next) {
+  try {
+    const { showName } = req.body;
+    if (typeof showName !== 'boolean') throw new AppError('Valoare invalidă pentru showName', 400);
+
+    const updated = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { showName },
+      select: { id: true, showName: true },
+    });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPublicProfile(req, res, next) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { username: req.params.username },
+      select: { id: true, username: true, name: true, showName: true, reputation: true, createdAt: true },
     });
     if (!user) throw new AppError('Utilizator inexistent', 404);
     res.json(user);

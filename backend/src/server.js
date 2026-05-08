@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import notesRoutes from './routes/notes.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import { getLeaderboard } from './controllers/leaderboard.controller.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config(); // încarcă .env în process.env
@@ -37,6 +38,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/admin', adminRoutes);
+app.get('/api/leaderboard', getLeaderboard);
 
 // 404 pentru orice rută API negăsită
 app.use('/api/*', (req, res) => {

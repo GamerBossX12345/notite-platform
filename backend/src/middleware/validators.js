@@ -20,7 +20,7 @@ export const CreateNoteSchema = z.object({
   subject: z.string().min(1, 'Subiect obligatoriu'),
   gradeLevel: z.coerce.number().int().min(1, 'Clasa minim 1').max(12, 'Clasa maxim 12'),
   chapter: z.string().optional(),
-  type: z.enum(['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA']),
+  type: z.enum(['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA', 'FORMULE']),
   content: z.string().optional(),
 });
 
@@ -29,7 +29,7 @@ export const UpdateNoteSchema = z.object({
   subject: z.string().min(1).optional(),
   gradeLevel: z.coerce.number().int().min(1).max(12).optional(),
   chapter: z.string().optional(),
-  type: z.enum(['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA']).optional(),
+  type: z.enum(['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA', 'FORMULE']).optional(),
   content: z.string().optional(),
 });
 

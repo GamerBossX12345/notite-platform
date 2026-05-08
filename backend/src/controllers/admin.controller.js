@@ -3,7 +3,7 @@ import path from 'path';
 import { prisma } from '../db/prismaClient.js';
 import { AppError } from '../middleware/errorHandler.js';
 
-const VALID_TYPES = ['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA'];
+const VALID_TYPES = ['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA', 'FORMULE'];
 
 // ── Utilizatori ──────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ export async function suspendUser(req, res, next) {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user) throw new AppError('Utilizator inexistent', 404);
-    if (user.username === 'Admin') throw new AppError('Contul Admin nu poate fi suspendat', 403);
+    if (user.role === 'ADMIN') throw new AppError('Un cont de admin nu poate fi suspendat', 403);
 
     const suspendedUntil = new Date(Date.now() + 48 * 60 * 60 * 1000);
     const updated = await prisma.user.update({
@@ -94,7 +94,7 @@ export async function deleteUser(req, res, next) {
   try {
     const user = await prisma.user.findUnique({ where: { id: req.params.id } });
     if (!user) throw new AppError('Utilizator inexistent', 404);
-    if (user.username === 'Admin') throw new AppError('Contul Admin nu poate fi șters', 403);
+    if (user.role === 'ADMIN') throw new AppError('Un cont de admin nu poate fi șters', 403);
 
     await prisma.user.delete({ where: { id: req.params.id } });
     res.status(204).end();

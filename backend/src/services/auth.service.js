@@ -36,6 +36,7 @@ export async function register({ email, username, password, name, school, grade 
       school: true,
       grade: true,
       reputation: true,
+      role: true,
       createdAt: true,
     },
   });

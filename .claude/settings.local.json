@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(cd c:\\\\Users\\\\dumit\\\\notite-platform\\\\backend; Get-Process node | Where-Object { $_.MainWindowTitle -eq '' } | Select-Object Id, CPU, WorkingSet)"
+    ]
+  }
+}

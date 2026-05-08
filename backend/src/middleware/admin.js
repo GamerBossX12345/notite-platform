@@ -1,8 +1,16 @@
-// requireAdmin trebuie pus DUPĂ requireAuth în lanțul de middleware.
-// Verifică că utilizatorul autentificat are username-ul 'Admin'.
-export function requireAdmin(req, res, next) {
-  if (req.user?.username !== 'Admin') {
-    return res.status(403).json({ error: 'Acces interzis — doar Admin.' });
+import { prisma } from '../db/prismaClient.js';
+
+export async function requireAdmin(req, res, next) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { role: true },
+    });
+    if (user?.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Acces interzis' });
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 }

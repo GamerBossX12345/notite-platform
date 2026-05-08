@@ -5,10 +5,11 @@ import { api } from '../api/client.js';
 import { useEditorSetup, TipTapEditor } from '../components/TipTapEditor.jsx';
 
 const NOTE_TYPES = [
-  { value: 'REZUMAT',          label: 'Rezumat' },
-  { value: 'EXERCITII',        label: 'Exerciții' },
-  { value: 'FISA',             label: 'Fișă' },
+  { value: 'REZUMAT',           label: 'Rezumat' },
+  { value: 'EXERCITII',         label: 'Exerciții' },
+  { value: 'FISA',              label: 'Fișă' },
   { value: 'HARTA_CONCEPTUALA', label: 'Hartă conceptuală' },
+  { value: 'FORMULE',           label: 'Formule' },
 ];
 
 const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
@@ -41,6 +42,7 @@ export default function UploadPage() {
   const [filePreview, setFilePreview] = useState(null);
   const [error, setError]           = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [successNoteId, setSuccessNoteId] = useState(null);
 
   useEffect(() => {
     if (!loading && !user) navigate('/login', { replace: true });
@@ -50,25 +52,26 @@ export default function UploadPage() {
     return () => { if (filePreview) URL.revokeObjectURL(filePreview); };
   }, [filePreview]);
 
+  // Navighează spre notiță după ce popupul e vizibil 1.8s
+  useEffect(() => {
+    if (!successNoteId) return;
+    const t = setTimeout(() => navigate(`/notes/${successNoteId}`), 1800);
+    return () => clearTimeout(t);
+  }, [successNoteId]);
+
   if (loading || !user) return <p>Se încarcă...</p>;
 
   function handleFileChange(e) {
     const selected = e.target.files[0];
     if (!selected) return;
-
     if (selected.size > MAX_FILE_MB * 1024 * 1024) {
       setError(`Fișierul depășește limita de ${MAX_FILE_MB} MB.`);
       e.target.value = '';
       return;
     }
-
     setError(null);
     setFile(selected);
-    if (selected.type.startsWith('image/')) {
-      setFilePreview(URL.createObjectURL(selected));
-    } else {
-      setFilePreview(null);
-    }
+    setFilePreview(selected.type.startsWith('image/') ? URL.createObjectURL(selected) : null);
   }
 
   function removeFile() {
@@ -81,7 +84,8 @@ export default function UploadPage() {
     e.preventDefault();
     setError(null);
 
-    if (!editor?.getHTML().trim() && !file) {
+    const hasContent = editor && !editor.isEmpty;
+    if (!hasContent && !file) {
       setError('Adaugă conținut în editor sau un fișier atașat.');
       return;
     }
@@ -95,82 +99,69 @@ export default function UploadPage() {
       if (chapter) formData.append('chapter', chapter);
       formData.append('type', type);
 
-      // Trimite HTML din editor
-      if (editor?.getHTML().trim()) {
+      if (hasContent) {
         formData.append('content', editor.getHTML());
       }
-
       if (file) formData.append('file', file);
 
       const { data } = await api.post('/notes', formData);
-      navigate(`/notes/${data.id}`);
+      setSuccessNoteId(data.id);
     } catch (err) {
       setError(err.response?.data?.error || 'Eroare la salvare');
-    } finally {
       setSubmitting(false);
     }
   }
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      {/* Popup succes */}
+      {successNoteId && (
+        <div style={successOverlay}>
+          <div style={successBox}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+            <h2 style={{ margin: '0 0 8px' }}>Notița a fost publicată!</h2>
+            <p style={{ color: '#666', margin: 0 }}>Te redirecționăm acum...</p>
+          </div>
+        </div>
+      )}
+
       <h1>📝 Notiță nouă</h1>
       <form onSubmit={handleSubmit}>
 
         <label style={labelStyle}>
           Titlu
-          <input
-            type="text"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            required
-            style={inputStyle}
-          />
+          <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+            required style={inputStyle} />
         </label>
 
         <label style={labelStyle}>
           Materie
-          <input
-            type="text"
-            value={subject}
-            onChange={e => setSubject(e.target.value)}
-            required
-            placeholder="ex: Matematică, Fizică, Istorie..."
-            style={inputStyle}
-          />
+          <input type="text" value={subject} onChange={e => setSubject(e.target.value)}
+            required placeholder="ex: Matematică, Fizică, Istorie..." style={inputStyle} />
         </label>
 
         <div style={{ display: 'flex', gap: 12 }}>
           <label style={{ ...labelStyle, flex: 1 }}>
             Clasa
             <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} style={inputStyle}>
-              {GRADE_LEVELS.map(g => (
-                <option key={g} value={g}>a {g}-a</option>
-              ))}
+              {GRADE_LEVELS.map(g => <option key={g} value={g}>a {g}-a</option>)}
             </select>
           </label>
           <label style={{ ...labelStyle, flex: 1 }}>
             Tip
             <select value={type} onChange={e => setType(e.target.value)} style={inputStyle}>
-              {NOTE_TYPES.map(t => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
+              {NOTE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </label>
         </div>
 
         <label style={labelStyle}>
           Capitol <span style={{ color: '#888', fontWeight: 400 }}>(opțional)</span>
-          <input
-            type="text"
-            value={chapter}
-            onChange={e => setChapter(e.target.value)}
-            style={inputStyle}
-          />
+          <input type="text" value={chapter} onChange={e => setChapter(e.target.value)} style={inputStyle} />
         </label>
 
-        {/* Editor TipTap */}
         <label style={labelStyle}>
-          Conținut <span style={{ color: '#888', fontWeight: 400 }}>(folosești editor cu suport KaTeX pentru formule)</span>
+          Conținut <span style={{ color: '#888', fontWeight: 400 }}>(suport KaTeX pentru formule)</span>
           <TipTapEditor editor={editor} />
         </label>
 
@@ -179,23 +170,18 @@ export default function UploadPage() {
           <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>
             Fișier atașat <span style={{ color: '#888', fontWeight: 400 }}>(opțional — imagini, PDF, Word, PowerPoint, Excel, max {MAX_FILE_MB} MB)</span>
           </span>
-
           {!file ? (
             <label style={dropZoneStyle}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept={ACCEPTED_TYPES}
-                onChange={handleFileChange}
-                style={{ display: 'none' }}
-              />
+              <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES}
+                onChange={handleFileChange} style={{ display: 'none' }} />
               <span style={{ color: '#0066cc', cursor: 'pointer' }}>Alege fișier</span>
               <span style={{ color: '#999', marginLeft: 8 }}>sau trage aici</span>
             </label>
           ) : (
             <div style={filePreviewContainerStyle}>
               {filePreview ? (
-                <img src={filePreview} alt="previzualizare" style={{ maxHeight: 200, maxWidth: '100%', borderRadius: 6, display: 'block', marginBottom: 8 }} />
+                <img src={filePreview} alt="previzualizare"
+                  style={{ maxHeight: 200, maxWidth: '100%', borderRadius: 6, display: 'block', marginBottom: 8 }} />
               ) : (
                 <div style={{ fontSize: 32, marginBottom: 4 }}>
                   {file.name.endsWith('.pdf') ? '📄' : '📎'}
@@ -205,16 +191,14 @@ export default function UploadPage() {
               <p style={{ margin: '2px 0 8px', fontSize: 12, color: '#888' }}>
                 {(file.size / 1024 / 1024).toFixed(2)} MB
               </p>
-              <button type="button" onClick={removeFile} style={btnRemoveStyle}>
-                Elimină fișier
-              </button>
+              <button type="button" onClick={removeFile} style={btnRemoveStyle}>Elimină fișier</button>
             </div>
           )}
         </div>
 
         {error && <p style={{ color: 'red', marginBottom: 12 }}>❌ {error}</p>}
 
-        <button type="submit" disabled={submitting} style={btnSubmitStyle}>
+        <button type="submit" disabled={submitting || !!successNoteId} style={btnSubmitStyle}>
           {submitting ? 'Se publică...' : 'Publică notița'}
         </button>
       </form>
@@ -224,44 +208,33 @@ export default function UploadPage() {
 
 const labelStyle = { display: 'block', marginBottom: 16, fontWeight: 500 };
 const inputStyle = {
-  display: 'block',
-  width: '100%',
-  padding: 8,
-  marginTop: 4,
-  border: '1px solid #ccc',
-  borderRadius: 4,
-  fontSize: 14,
-  boxSizing: 'border-box',
+  display: 'block', width: '100%', padding: 8, marginTop: 4,
+  border: '1px solid #ccc', borderRadius: 4, fontSize: 14, boxSizing: 'border-box',
 };
 const dropZoneStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  padding: '20px 16px',
-  border: '2px dashed #ccc',
-  borderRadius: 8,
-  cursor: 'pointer',
+  display: 'flex', alignItems: 'center', padding: '20px 16px',
+  border: '2px dashed #ccc', borderRadius: 8, cursor: 'pointer',
 };
 const filePreviewContainerStyle = {
-  padding: 16,
-  border: '1px solid #e0e0e0',
-  borderRadius: 8,
-  background: '#fafafa',
+  padding: 16, border: '1px solid #e0e0e0', borderRadius: 8, background: '#fafafa',
 };
 const btnRemoveStyle = {
-  padding: '4px 10px',
-  background: 'white',
-  border: '1px solid #ccc',
-  borderRadius: 4,
-  cursor: 'pointer',
-  fontSize: 13,
-  color: '#666',
+  padding: '4px 10px', background: 'white', border: '1px solid #ccc',
+  borderRadius: 4, cursor: 'pointer', fontSize: 13, color: '#666',
 };
 const btnSubmitStyle = {
-  padding: '10px 24px',
-  background: '#0066cc',
-  color: 'white',
-  border: 'none',
-  borderRadius: 4,
-  cursor: 'pointer',
-  fontSize: 15,
+  padding: '10px 24px', background: '#0066cc', color: 'white',
+  border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 15,
+};
+const successOverlay = {
+  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+  background: 'rgba(0,0,0,0.5)',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  zIndex: 2000,
+  animation: 'fadeIn 0.2s ease',
+};
+const successBox = {
+  background: 'white', borderRadius: 16, padding: '40px 48px',
+  textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+  animation: 'scaleIn 0.25s ease',
 };
