@@ -11,6 +11,19 @@ const NOTE_TYPES = [
 ];
 const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
 
+const REASON_LABEL = {
+  PLAGIAT:             'Plagiat',
+  CONTINUT_NEPOTRIVIT: 'Conținut nepotrivit',
+  SPAM:                'Spam',
+  ALTUL:               'Altul',
+};
+const STATUS_STYLE = {
+  PENDING:  { background: '#fff3cd', color: '#856404', label: 'În așteptare' },
+  REVIEWED: { background: '#cce5ff', color: '#004085', label: 'Verificat' },
+  RESOLVED: { background: '#d4edda', color: '#155724', label: 'Rezolvat' },
+};
+
+// ── Mici componente reutilizabile ────────────────────────────────────────────
 function Th({ children }) {
   return (
     <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #e0e0e0', fontSize: 13, fontWeight: 600, color: '#555', whiteSpace: 'nowrap' }}>
@@ -33,7 +46,22 @@ function Field({ label, value, onChange, type = 'text', required = false }) {
     </label>
   );
 }
+function SearchBar({ value, onChange, placeholder }) {
+  return (
+    <input
+      type="search"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      style={{ padding: '7px 10px', border: '1px solid #ccc', borderRadius: 4, fontSize: 14, width: 280, marginBottom: 16, boxSizing: 'border-box' }}
+    />
+  );
+}
+function Empty({ label }) {
+  return <p style={{ color: '#999', padding: '16px 0' }}>Niciun rezultat{label ? ` pentru "${label}"` : ''}.</p>;
+}
 
+// ── Pagina principală ────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -41,14 +69,22 @@ export default function AdminPage() {
   const [tab, setTab]               = useState('users');
   const [users, setUsers]           = useState([]);
   const [notes, setNotes]           = useState([]);
+  const [reports, setReports]       = useState([]);
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError]           = useState(null);
 
-  const [editTarget, setEditTarget] = useState(null); // { type: 'user'|'note', id }
+  // Căutare per tab
+  const [userQuery, setUserQuery]     = useState('');
+  const [noteQuery, setNoteQuery]     = useState('');
+  const [reportQuery, setReportQuery] = useState('');
+
+  // Modal editare
+  const [editTarget, setEditTarget] = useState(null);
   const [editForm, setEditForm]     = useState({});
   const [saving, setSaving]         = useState(false);
 
   const isAdmin = user?.username === 'Admin';
+  const pendingCount = reports.filter(r => r.status === 'PENDING').length;
 
   useEffect(() => {
     if (!loading && !isAdmin) navigate('/', { replace: true });
@@ -56,8 +92,12 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isAdmin) return;
-    Promise.all([api.get('/admin/users'), api.get('/admin/notes')])
-      .then(([u, n]) => { setUsers(u.data); setNotes(n.data); })
+    Promise.all([
+      api.get('/admin/users'),
+      api.get('/admin/notes'),
+      api.get('/admin/reports'),
+    ])
+      .then(([u, n, r]) => { setUsers(u.data); setNotes(n.data); setReports(r.data); })
       .catch(err => setError(err.message))
       .finally(() => setDataLoading(false));
   }, [isAdmin]);
@@ -66,7 +106,30 @@ export default function AdminPage() {
   if (error) return <p style={{ color: 'red' }}>Eroare: {error}</p>;
   if (!isAdmin) return null;
 
-  // ── Acțiuni utilizatori ──
+  // ── Filtrare ─────────────────────────────────────────────────────────────
+  const q = s => s.toLowerCase();
+
+  const filteredUsers = users.filter(u => {
+    if (!userQuery) return true;
+    const s = q(userQuery);
+    return q(u.username).includes(s) || q(u.email).includes(s) || q(u.name || '').includes(s);
+  });
+
+  const filteredNotes = notes.filter(n => {
+    if (!noteQuery) return true;
+    const s = q(noteQuery);
+    return q(n.title).includes(s) || q(n.subject).includes(s) || q(n.author.username).includes(s);
+  });
+
+  const filteredReports = reports.filter(r => {
+    if (!reportQuery) return true;
+    const s = q(reportQuery);
+    return q(r.note.title).includes(s)
+      || q(r.reporter.username).includes(s)
+      || q(REASON_LABEL[r.reason] || r.reason).includes(s);
+  });
+
+  // ── Acțiuni utilizatori ──────────────────────────────────────────────────
   function openEditUser(u) {
     setEditTarget({ type: 'user', id: u.id });
     setEditForm({ name: u.name || '', email: u.email, username: u.username, school: u.school || '', grade: u.grade || '' });
@@ -78,11 +141,11 @@ export default function AdminPage() {
       await api.delete(`/admin/users/${id}`);
       setUsers(prev => prev.filter(u => u.id !== id));
     } catch (err) {
-      alert(err.response?.data?.error || 'Eroare la ștergere');
+      alert(err.response?.data?.error || 'Eroare');
     }
   }
 
-  // ── Acțiuni notițe ──
+  // ── Acțiuni notițe ────────────────────────────────────────────────────────
   function openEditNote(n) {
     setEditTarget({ type: 'note', id: n.id });
     setEditForm({ title: n.title, subject: n.subject, gradeLevel: n.gradeLevel, type: n.type, chapter: n.chapter || '' });
@@ -93,12 +156,33 @@ export default function AdminPage() {
     try {
       await api.delete(`/admin/notes/${id}`);
       setNotes(prev => prev.filter(n => n.id !== id));
+      setReports(prev => prev.filter(r => r.note.id !== id));
     } catch (err) {
-      alert(err.response?.data?.error || 'Eroare la ștergere');
+      alert(err.response?.data?.error || 'Eroare');
     }
   }
 
-  // ── Salvare modal ──
+  // ── Acțiuni raportări ─────────────────────────────────────────────────────
+  async function setReportStatus(id, status) {
+    try {
+      const { data } = await api.patch(`/admin/reports/${id}`, { status });
+      setReports(prev => prev.map(r => r.id === id ? data : r));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  async function deleteReport(id) {
+    if (!confirm('Ștergi raportul?')) return;
+    try {
+      await api.delete(`/admin/reports/${id}`);
+      setReports(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  // ── Salvare modal ─────────────────────────────────────────────────────────
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
@@ -118,104 +202,180 @@ export default function AdminPage() {
     }
   }
 
-  function field(key) {
-    return v => setEditForm(f => ({ ...f, [key]: v }));
-  }
+  const field = key => v => setEditForm(f => ({ ...f, [key]: v }));
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div>
       <h1>Panou admin</h1>
       <p style={{ color: '#666', marginBottom: 20 }}>
-        {users.length} utilizatori • {notes.length} notițe
+        {users.length} utilizatori • {notes.length} notițe • {reports.length} raportări
       </p>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+      {/* Tab-uri */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         <button onClick={() => setTab('users')} style={tab === 'users' ? activeTab : tabBtn}>
           Utilizatori ({users.length})
         </button>
         <button onClick={() => setTab('notes')} style={tab === 'notes' ? activeTab : tabBtn}>
           Notițe ({notes.length})
         </button>
+        <button onClick={() => setTab('reports')} style={tab === 'reports' ? activeTab : tabBtn}>
+          Raportate ({reports.length})
+          {pendingCount > 0 && (
+            <span style={{ marginLeft: 6, background: '#dc3545', color: 'white', borderRadius: 10, padding: '1px 6px', fontSize: 11 }}>
+              {pendingCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Tabel utilizatori */}
+      {/* ── Utilizatori ── */}
       {tab === 'users' && (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <Th>Prenume</Th><Th>Username</Th><Th>Email</Th>
-                <Th>Școală</Th><Th>Clasă</Th><Th>Rep.</Th>
-                <Th>Notițe</Th><Th>Comentarii</Th><Th>Cont creat</Th><Th>Acțiuni</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id} style={{ background: u.username === 'Admin' ? '#fffbea' : 'transparent' }}>
-                  <Td>{u.name || <span style={{ color: '#bbb' }}>—</span>}</Td>
-                  <Td><strong>{u.username}</strong></Td>
-                  <Td>{u.email}</Td>
-                  <Td>{u.school || <span style={{ color: '#bbb' }}>—</span>}</Td>
-                  <Td>{u.grade ? `a ${u.grade}-a` : <span style={{ color: '#bbb' }}>—</span>}</Td>
-                  <Td>{u.reputation}</Td>
-                  <Td>{u._count.notes}</Td>
-                  <Td>{u._count.comments}</Td>
-                  <Td>{new Date(u.createdAt).toLocaleDateString('ro-RO')}</Td>
-                  <Td>
-                    <button onClick={() => openEditUser(u)} style={btnEdit}>Editează</button>
-                    {u.username !== 'Admin' && (
-                      <button onClick={() => deleteUser(u.id)} style={btnDelete}>Șterge</button>
-                    )}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <SearchBar value={userQuery} onChange={setUserQuery} placeholder="Caută după username, email sau prenume..." />
+          {filteredUsers.length === 0 ? <Empty label={userQuery} /> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Prenume</Th><Th>Username</Th><Th>Email</Th>
+                    <Th>Școală</Th><Th>Clasă</Th><Th>Rep.</Th>
+                    <Th>Notițe</Th><Th>Comentarii</Th><Th>Cont creat</Th><Th>Acțiuni</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map(u => (
+                    <tr key={u.id} style={{ background: u.username === 'Admin' ? '#fffbea' : 'transparent' }}>
+                      <Td>{u.name || <Dash />}</Td>
+                      <Td><strong>{u.username}</strong></Td>
+                      <Td>{u.email}</Td>
+                      <Td>{u.school || <Dash />}</Td>
+                      <Td>{u.grade ? `a ${u.grade}-a` : <Dash />}</Td>
+                      <Td>{u.reputation}</Td>
+                      <Td>{u._count.notes}</Td>
+                      <Td>{u._count.comments}</Td>
+                      <Td>{new Date(u.createdAt).toLocaleDateString('ro-RO')}</Td>
+                      <Td>
+                        <button onClick={() => openEditUser(u)} style={btnEdit}>Editează</button>
+                        {u.username !== 'Admin' && (
+                          <button onClick={() => deleteUser(u.id)} style={btnDelete}>Șterge</button>
+                        )}
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Tabel notițe */}
+      {/* ── Notițe ── */}
       {tab === 'notes' && (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                <Th>Titlu</Th><Th>Autor</Th><Th>Materie</Th>
-                <Th>Clasă</Th><Th>Tip</Th><Th>Rating</Th>
-                <Th>Publicat</Th><Th>Acțiuni</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {notes.map(n => (
-                <tr key={n.id}>
-                  <Td>
-                    <a href={`/notes/${n.id}`} target="_blank" rel="noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>
-                      {n.title}
-                    </a>
-                  </Td>
-                  <Td>{n.author.name || n.author.username}</Td>
-                  <Td>{n.subject}</Td>
-                  <Td>a {n.gradeLevel}-a</Td>
-                  <Td>{n.type}</Td>
-                  <Td>
-                    {n.ratingCount > 0
-                      ? `★ ${n.avgRating.toFixed(1)} (${n.ratingCount})`
-                      : <span style={{ color: '#bbb' }}>—</span>}
-                  </Td>
-                  <Td>{new Date(n.createdAt).toLocaleDateString('ro-RO')}</Td>
-                  <Td>
-                    <button onClick={() => openEditNote(n)} style={btnEdit}>Editează</button>
-                    <button onClick={() => deleteNote(n.id)} style={btnDelete}>Șterge</button>
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <SearchBar value={noteQuery} onChange={setNoteQuery} placeholder="Caută după titlu, materie sau autor..." />
+          {filteredNotes.length === 0 ? <Empty label={noteQuery} /> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Titlu</Th><Th>Autor</Th><Th>Materie</Th>
+                    <Th>Clasă</Th><Th>Tip</Th><Th>Rating</Th>
+                    <Th>Publicat</Th><Th>Acțiuni</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredNotes.map(n => (
+                    <tr key={n.id}>
+                      <Td>
+                        <a href={`/notes/${n.id}`} target="_blank" rel="noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>
+                          {n.title}
+                        </a>
+                      </Td>
+                      <Td>{n.author.name || n.author.username}</Td>
+                      <Td>{n.subject}</Td>
+                      <Td>a {n.gradeLevel}-a</Td>
+                      <Td>{n.type}</Td>
+                      <Td>
+                        {n.ratingCount > 0
+                          ? `★ ${n.avgRating.toFixed(1)} (${n.ratingCount})`
+                          : <Dash />}
+                      </Td>
+                      <Td>{new Date(n.createdAt).toLocaleDateString('ro-RO')}</Td>
+                      <Td>
+                        <button onClick={() => openEditNote(n)} style={btnEdit}>Editează</button>
+                        <button onClick={() => deleteNote(n.id)} style={btnDelete}>Șterge</button>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Modal editare */}
+      {/* ── Raportări ── */}
+      {tab === 'reports' && (
+        <>
+          <SearchBar value={reportQuery} onChange={setReportQuery} placeholder="Caută după titlu notiță, raportat de, motiv..." />
+          {filteredReports.length === 0 ? <Empty label={reportQuery} /> : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Notiță</Th><Th>Autor notiță</Th><Th>Raportat de</Th>
+                    <Th>Motiv</Th><Th>Detalii</Th><Th>Status</Th>
+                    <Th>Data</Th><Th>Acțiuni</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredReports.map(r => {
+                    const st = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
+                    return (
+                      <tr key={r.id}>
+                        <Td>
+                          <a href={`/notes/${r.note.id}`} target="_blank" rel="noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>
+                            {r.note.title}
+                          </a>
+                        </Td>
+                        <Td>{r.note.author.username}</Td>
+                        <Td>{r.reporter.name || r.reporter.username}</Td>
+                        <Td>{REASON_LABEL[r.reason] || r.reason}</Td>
+                        <Td style={{ maxWidth: 200, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          {r.details || <Dash />}
+                        </Td>
+                        <Td>
+                          <span style={{ ...badgeBase, background: st.background, color: st.color }}>
+                            {st.label}
+                          </span>
+                        </Td>
+                        <Td>{new Date(r.createdAt).toLocaleDateString('ro-RO')}</Td>
+                        <Td>
+                          {r.status === 'PENDING' && (
+                            <button onClick={() => setReportStatus(r.id, 'REVIEWED')} style={{ ...btnEdit, color: '#004085' }}>
+                              Marchează verificat
+                            </button>
+                          )}
+                          {r.status === 'REVIEWED' && (
+                            <button onClick={() => setReportStatus(r.id, 'RESOLVED')} style={{ ...btnEdit, color: '#155724' }}>
+                              Marchează rezolvat
+                            </button>
+                          )}
+                          <button onClick={() => deleteReport(r.id)} style={btnDelete}>Șterge</button>
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Modal editare ── */}
       {editTarget && (
         <div style={modalOverlay}>
           <div style={modalBox}>
@@ -272,11 +432,16 @@ export default function AdminPage() {
   );
 }
 
+function Dash() {
+  return <span style={{ color: '#bbb' }}>—</span>;
+}
+
 const tableStyle   = { width: '100%', borderCollapse: 'collapse' };
 const tabBtn       = { padding: '8px 18px', border: '1px solid #ccc', borderRadius: 4, background: 'white', cursor: 'pointer', fontSize: 14 };
 const activeTab    = { ...tabBtn, background: '#0066cc', color: 'white', border: '1px solid #0066cc' };
 const btnEdit      = { padding: '3px 8px', marginRight: 6, border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: 'white' };
 const btnDelete    = { padding: '3px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: '#dc3545', color: 'white' };
+const badgeBase    = { display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500 };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
 const modalBox     = { background: 'white', padding: 24, borderRadius: 8, maxWidth: 460, width: '100%', margin: '0 16px', maxHeight: '90vh', overflowY: 'auto' };
 const labelStyle   = { display: 'block', marginBottom: 12, fontWeight: 500 };

@@ -16,4 +16,8 @@ router.get('/notes',        adminController.listNotes);
 router.patch('/notes/:id',  adminController.updateNote);
 router.delete('/notes/:id', adminController.deleteNote);
 
+router.get('/reports',        adminController.listReports);
+router.patch('/reports/:id',  adminController.updateReport);
+router.delete('/reports/:id', adminController.deleteReport);
+
 export default router;

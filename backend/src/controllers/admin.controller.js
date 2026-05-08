@@ -69,6 +69,62 @@ export async function deleteUser(req, res, next) {
   }
 }
 
+// ── Raportări ────────────────────────────────────────────────────────────────
+
+const VALID_STATUSES = ['PENDING', 'REVIEWED', 'RESOLVED'];
+
+// GET /api/admin/reports
+export async function listReports(req, res, next) {
+  try {
+    const reports = await prisma.report.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reporter: { select: { id: true, username: true, name: true } },
+        note: {
+          select: {
+            id: true,
+            title: true,
+            author: { select: { username: true } },
+          },
+        },
+      },
+    });
+    res.json(reports);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// PATCH /api/admin/reports/:id
+export async function updateReport(req, res, next) {
+  try {
+    const { status } = req.body;
+    if (!VALID_STATUSES.includes(status)) throw new AppError('Status invalid', 400);
+
+    const updated = await prisma.report.update({
+      where: { id: req.params.id },
+      data: { status },
+      include: {
+        reporter: { select: { id: true, username: true, name: true } },
+        note: { select: { id: true, title: true, author: { select: { username: true } } } },
+      },
+    });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// DELETE /api/admin/reports/:id
+export async function deleteReport(req, res, next) {
+  try {
+    await prisma.report.delete({ where: { id: req.params.id } });
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
 // ── Notițe ───────────────────────────────────────────────────────────────────
 
 // GET /api/admin/notes
