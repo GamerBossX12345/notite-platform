@@ -19,12 +19,46 @@ export async function listUsers(req, res, next) {
         school: true,
         grade: true,
         reputation: true,
+        suspendedUntil: true,
         createdAt: true,
         _count: { select: { notes: true, comments: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
     res.json(users);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/admin/users/:id/suspend
+export async function suspendUser(req, res, next) {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!user) throw new AppError('Utilizator inexistent', 404);
+    if (user.username === 'Admin') throw new AppError('Contul Admin nu poate fi suspendat', 403);
+
+    const suspendedUntil = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { suspendedUntil },
+      select: { id: true, username: true, suspendedUntil: true },
+    });
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/admin/users/:id/unsuspend
+export async function unsuspendUser(req, res, next) {
+  try {
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { suspendedUntil: null },
+      select: { id: true, username: true, suspendedUntil: true },
+    });
+    res.json(updated);
   } catch (err) {
     next(err);
   }
@@ -84,7 +118,8 @@ export async function listReports(req, res, next) {
           select: {
             id: true,
             title: true,
-            author: { select: { username: true } },
+            hidden: true,
+            author: { select: { id: true, username: true, suspendedUntil: true } },
           },
         },
       },
@@ -106,7 +141,7 @@ export async function updateReport(req, res, next) {
       data: { status },
       include: {
         reporter: { select: { id: true, username: true, name: true } },
-        note: { select: { id: true, title: true, author: { select: { username: true } } } },
+        note: { select: { id: true, title: true, hidden: true, author: { select: { id: true, username: true, suspendedUntil: true } } } },
       },
     });
     res.json(updated);
@@ -161,6 +196,22 @@ export async function updateNote(req, res, next) {
       include: { author: { select: { id: true, username: true, name: true } } },
     });
     res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/admin/notes/:id/unhide
+export async function unhideNote(req, res, next) {
+  try {
+    const note = await prisma.note.findUnique({ where: { id: req.params.id } });
+    if (!note) throw new AppError('Notiță inexistentă', 404);
+
+    await prisma.note.update({
+      where: { id: req.params.id },
+      data: { hidden: false },
+    });
+    res.json({ id: req.params.id, hidden: false });
   } catch (err) {
     next(err);
   }

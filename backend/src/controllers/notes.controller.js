@@ -16,7 +16,7 @@ export async function list(req, res, next) {
       sort = 'recent', page = '1', pageSize = '12',
     } = req.query;
 
-    const where = {};
+    const where = { hidden: false };
     if (subject) where.subject = subject;
     if (gradeLevel) where.gradeLevel = Number(gradeLevel);
     if (type && VALID_TYPES.includes(type)) where.type = type;
@@ -79,6 +79,11 @@ export async function getById(req, res, next) {
       },
     });
     if (!note) throw new AppError('Notiță inexistentă', 404);
+
+    // Notițe ascunse: vizibile doar pentru autor
+    if (note.hidden && req.user?.id !== note.authorId) {
+      throw new AppError('Această notiță a fost ascunsă temporar în urma unui raport.', 403);
+    }
 
     // Incrementează viewCount (dacă nu e autorul)
     if (req.user?.id !== note.authorId) {

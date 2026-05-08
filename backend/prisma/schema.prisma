@@ -19,9 +19,10 @@ model User {
   name         String?
   school       String?
   grade        Int?
-  bio          String?
-  reputation   Int      @default(0)
-  createdAt    DateTime @default(now())
+  bio            String?
+  reputation     Int       @default(0)
+  suspendedUntil DateTime?
+  createdAt      DateTime  @default(now())
 
   notes    Note[]
   ratings  Rating[]
@@ -42,6 +43,7 @@ model Note {
 
   content    Json?
   fileUrl    String?
+  hidden     Boolean  @default(false)
 
   // Câmpuri denormalizate — actualizate într-o tranzacție când se votează.
   // Alternativă: AVG/COUNT pe tabela Rating la fiecare listare. Mai lent.
@@ -100,13 +102,15 @@ model Comment {
 }
 
 model Report {
-  id         String       @id @default(uuid())
-  reporterId String
-  noteId     String
-  reason     ReportReason
-  details    String?
-  status     ReportStatus @default(PENDING)
-  createdAt  DateTime     @default(now())
+  id              String       @id @default(uuid())
+  reporterId      String
+  noteId          String
+  reason          ReportReason
+  details         String?
+  status          ReportStatus @default(PENDING)
+  aiVerdict       String?
+  aiVerdictText   String?
+  createdAt       DateTime     @default(now())
 
   reporter User @relation(fields: [reporterId], references: [id])
   note     Note @relation(fields: [noteId], references: [id], onDelete: Cascade)

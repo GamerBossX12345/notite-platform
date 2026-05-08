@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth.js';
 import { RatingStars, RatingStarsDisplay } from '../components/RatingStars.jsx';
 import { CommentsSection } from '../components/CommentsSection.jsx';
 import { QuizModal } from '../components/QuizModal.jsx';
+import { AIChatModal } from '../components/AIChatModal.jsx';
 
 const BACKEND_URL = new URL(api.defaults.baseURL).origin;
 
@@ -81,6 +82,7 @@ export default function NotePage() {
   const [error, setError]     = useState(null);
   const [comments, setComments] = useState([]);
   const [quizModalOpen, setQuizModalOpen] = useState(false);
+  const [chatModalOpen, setChatModalOpen] = useState(false);
 
   // Rating
   const [userRating, setUserRating]             = useState(0);
@@ -168,10 +170,17 @@ export default function NotePage() {
     e.preventDefault();
     setSubmittingReport(true);
     try {
-      await api.post(`/notes/${id}/reports`, { reason: reportReason, details: reportDetails });
+      const { data } = await api.post(`/notes/${id}/reports`, { reason: reportReason, details: reportDetails });
       setShowReport(false);
       setReportDetails('');
-      alert('✅ Raportul a fost trimis. Mulțumim!');
+
+      const verdictMsg = data.aiVerdict === 'VALID'
+        ? '\n\nAI a confirmat raportul. Notița a fost ascunsă temporar până la decizia finală a adminului.'
+        : data.aiVerdict === 'INVALID'
+        ? '\n\nAI consideră că raportul nu este justificat, dar va fi totuși revizuit de admin.'
+        : '';
+
+      alert('✅ Raportul a fost trimis. Mulțumim!' + verdictMsg);
     } catch (err) {
       alert(err.response?.data?.error || 'Eroare la raportare');
     } finally {
@@ -272,8 +281,8 @@ export default function NotePage() {
         </div>
       </section>
 
-      {/* Quiz */}
-      <section style={{ marginTop: 24 }}>
+      {/* Butoane AI */}
+      <section style={{ marginTop: 24, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <button
           onClick={() => setQuizModalOpen(true)}
           style={{
@@ -288,7 +297,27 @@ export default function NotePage() {
         >
           📝 Generează Quiz cu AI
         </button>
+        <button
+          onClick={() => setChatModalOpen(true)}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: '#7b1fa2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '14px',
+          }}
+        >
+          💬 Cere ajutorul AI
+        </button>
         <QuizModal noteId={id} isOpen={quizModalOpen} onClose={() => setQuizModalOpen(false)} />
+        <AIChatModal
+          noteId={id}
+          noteTitle={note.title}
+          isOpen={chatModalOpen}
+          onClose={() => setChatModalOpen(false)}
+        />
       </section>
 
       {/* Raportează */}

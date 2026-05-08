@@ -7,6 +7,7 @@ import * as commentsController from '../controllers/comments.controller.js';
 import * as reportsController from '../controllers/reports.controller.js';
 import * as duplicatesController from '../controllers/duplicates.controller.js';
 import * as quizController from '../controllers/quiz.controller.js';
+import * as chatController from '../controllers/chat.controller.js';
 
 const router = Router();
 
@@ -43,6 +44,9 @@ router.put('/:id/comments/:commentId', requireAuth, commentsController.updateCom
 
 // Quiz generator
 router.get('/:id/quiz', requireAuth, quizController.generate);
+
+// AI Chat
+router.post('/:id/chat', requireAuth, chatController.chat);
 
 // Reports
 router.post('/:id/reports', requireAuth, reportsController.create);

@@ -22,6 +22,11 @@ const STATUS_STYLE = {
   REVIEWED: { background: '#cce5ff', color: '#004085', label: 'Verificat' },
   RESOLVED: { background: '#d4edda', color: '#155724', label: 'Rezolvat' },
 };
+const AI_VERDICT_STYLE = {
+  VALID:     { background: '#d4edda', color: '#155724', label: '✔ Valid' },
+  INVALID:   { background: '#f8d7da', color: '#721c24', label: '✘ Invalid' },
+  UNCERTAIN: { background: '#fff3cd', color: '#856404', label: '? Nesigur' },
+};
 
 // ── Mici componente reutilizabile ────────────────────────────────────────────
 function Th({ children }) {
@@ -182,6 +187,71 @@ export default function AdminPage() {
     }
   }
 
+  async function deleteNoteFromReport(noteId) {
+    if (!confirm('Ștergi notița raportată? Acțiunea este ireversibilă.')) return;
+    try {
+      await api.delete(`/admin/notes/${noteId}`);
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+      setReports(prev => prev.filter(r => r.note.id !== noteId));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  async function unhideNote(noteId) {
+    try {
+      await api.post(`/admin/notes/${noteId}/unhide`);
+      setNotes(prev => prev.map(n => n.id === noteId ? { ...n, hidden: false } : n));
+      setReports(prev => prev.map(r =>
+        r.note.id === noteId ? { ...r, note: { ...r.note, hidden: false } } : r
+      ));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  async function suspendAuthor(userId) {
+    if (!confirm('Suspendă utilizatorul 48 de ore?')) return;
+    try {
+      const { data } = await api.post(`/admin/users/${userId}/suspend`);
+      // Actualizează suspendedUntil în rapoarte și utilizatori
+      setReports(prev => prev.map(r =>
+        r.note.author.id === userId
+          ? { ...r, note: { ...r.note, author: { ...r.note.author, suspendedUntil: data.suspendedUntil } } }
+          : r
+      ));
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, suspendedUntil: data.suspendedUntil } : u));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  async function unsuspendAuthor(userId) {
+    try {
+      await api.post(`/admin/users/${userId}/unsuspend`);
+      setReports(prev => prev.map(r =>
+        r.note.author.id === userId
+          ? { ...r, note: { ...r.note, author: { ...r.note.author, suspendedUntil: null } } }
+          : r
+      ));
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, suspendedUntil: null } : u));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  async function deleteAuthorFromReport(userId) {
+    if (!confirm('Ștergi utilizatorul și toate datele sale? Acțiunea este ireversibilă.')) return;
+    try {
+      await api.delete(`/admin/users/${userId}`);
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setNotes(prev => prev.filter(n => n.author.id !== userId));
+      setReports(prev => prev.filter(r => r.note.author.id !== userId));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
   // ── Salvare modal ─────────────────────────────────────────────────────────
   async function handleSave(e) {
     e.preventDefault();
@@ -289,9 +359,14 @@ export default function AdminPage() {
                   {filteredNotes.map(n => (
                     <tr key={n.id}>
                       <Td>
-                        <a href={`/notes/${n.id}`} target="_blank" rel="noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>
+                        <a href={`/notes/${n.id}`} target="_blank" rel="noreferrer" style={{ color: n.hidden ? '#999' : '#0066cc', textDecoration: 'none' }}>
                           {n.title}
                         </a>
+                        {n.hidden && (
+                          <span style={{ marginLeft: 6, fontSize: 10, background: '#b71c1c', color: 'white', borderRadius: 4, padding: '1px 5px' }}>
+                            ascunsă
+                          </span>
+                        )}
                       </Td>
                       <Td>{n.author.name || n.author.username}</Td>
                       <Td>{n.subject}</Td>
@@ -305,6 +380,11 @@ export default function AdminPage() {
                       <Td>{new Date(n.createdAt).toLocaleDateString('ro-RO')}</Td>
                       <Td>
                         <button onClick={() => openEditNote(n)} style={btnEdit}>Editează</button>
+                        {n.hidden && (
+                          <button onClick={() => unhideNote(n.id)} style={{ ...btnEdit, color: '#155724', border: '1px solid #4caf50' }}>
+                            Repune
+                          </button>
+                        )}
                         <button onClick={() => deleteNote(n.id)} style={btnDelete}>Șterge</button>
                       </Td>
                     </tr>
@@ -326,8 +406,8 @@ export default function AdminPage() {
                 <thead>
                   <tr>
                     <Th>Notiță</Th><Th>Autor notiță</Th><Th>Raportat de</Th>
-                    <Th>Motiv</Th><Th>Detalii</Th><Th>Status</Th>
-                    <Th>Data</Th><Th>Acțiuni</Th>
+                    <Th>Motiv</Th><Th>Detalii</Th><Th>Verdict AI</Th>
+                    <Th>Status</Th><Th>Data</Th><Th>Acțiuni</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -339,12 +419,40 @@ export default function AdminPage() {
                           <a href={`/notes/${r.note.id}`} target="_blank" rel="noreferrer" style={{ color: '#0066cc', textDecoration: 'none' }}>
                             {r.note.title}
                           </a>
+                          {r.note.hidden && (
+                            <span style={{ marginLeft: 6, fontSize: 10, background: '#b71c1c', color: 'white', borderRadius: 4, padding: '1px 5px' }}>
+                              ascunsă
+                            </span>
+                          )}
                         </Td>
-                        <Td>{r.note.author.username}</Td>
+                        <Td>
+                          {r.note.author.username}
+                          {r.note.author.suspendedUntil && new Date(r.note.author.suspendedUntil) > new Date() && (
+                            <span style={{ marginLeft: 6, fontSize: 10, background: '#f57c00', color: 'white', borderRadius: 4, padding: '1px 5px' }}>
+                              suspendat
+                            </span>
+                          )}
+                        </Td>
                         <Td>{r.reporter.name || r.reporter.username}</Td>
                         <Td>{REASON_LABEL[r.reason] || r.reason}</Td>
                         <Td style={{ maxWidth: 200, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                           {r.details || <Dash />}
+                        </Td>
+                        <Td>
+                          {r.aiVerdict ? (
+                            <div title={r.aiVerdictText || ''} style={{ cursor: r.aiVerdictText ? 'help' : 'default' }}>
+                              <span style={{ ...badgeBase, ...AI_VERDICT_STYLE[r.aiVerdict] }}>
+                                {AI_VERDICT_STYLE[r.aiVerdict]?.label ?? r.aiVerdict}
+                              </span>
+                              {r.aiVerdictText && (
+                                <div style={{ fontSize: 11, color: '#666', marginTop: 3, maxWidth: 160, wordBreak: 'break-word' }}>
+                                  {r.aiVerdictText}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <Dash />
+                          )}
                         </Td>
                         <Td>
                           <span style={{ ...badgeBase, background: st.background, color: st.color }}>
@@ -353,17 +461,46 @@ export default function AdminPage() {
                         </Td>
                         <Td>{new Date(r.createdAt).toLocaleDateString('ro-RO')}</Td>
                         <Td>
-                          {r.status === 'PENDING' && (
-                            <button onClick={() => setReportStatus(r.id, 'REVIEWED')} style={{ ...btnEdit, color: '#004085' }}>
-                              Marchează verificat
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 140 }}>
+                            {/* Status */}
+                            {r.status === 'PENDING' && (
+                              <button onClick={() => setReportStatus(r.id, 'REVIEWED')} style={{ ...btnEdit, color: '#004085' }}>
+                                Marchează verificat
+                              </button>
+                            )}
+                            {r.status === 'REVIEWED' && (
+                              <button onClick={() => setReportStatus(r.id, 'RESOLVED')} style={{ ...btnEdit, color: '#155724' }}>
+                                Marchează rezolvat
+                              </button>
+                            )}
+                            <hr style={{ margin: '2px 0', border: 'none', borderTop: '1px solid #eee' }} />
+                            {/* Notiță */}
+                            {r.note.hidden && (
+                              <button onClick={() => unhideNote(r.note.id)} style={{ ...btnEdit, color: '#155724', border: '1px solid #4caf50' }}>
+                                Repune notița
+                              </button>
+                            )}
+                            <button onClick={() => deleteNoteFromReport(r.note.id)} style={{ ...btnDelete, background: '#e53935' }}>
+                              Șterge notița
                             </button>
-                          )}
-                          {r.status === 'REVIEWED' && (
-                            <button onClick={() => setReportStatus(r.id, 'RESOLVED')} style={{ ...btnEdit, color: '#155724' }}>
-                              Marchează rezolvat
+                            {/* Autor */}
+                            {r.note.author.suspendedUntil && new Date(r.note.author.suspendedUntil) > new Date() ? (
+                              <button onClick={() => unsuspendAuthor(r.note.author.id)} style={{ ...btnEdit, color: '#155724', border: '1px solid #4caf50' }}>
+                                Ridică suspendarea
+                              </button>
+                            ) : (
+                              <button onClick={() => suspendAuthor(r.note.author.id)} style={{ ...btnDelete, background: '#f57c00' }}>
+                                Suspendă autor 48h
+                              </button>
+                            )}
+                            <button onClick={() => deleteAuthorFromReport(r.note.author.id)} style={{ ...btnDelete, background: '#6d4c41' }}>
+                              Șterge utilizator
                             </button>
-                          )}
-                          <button onClick={() => deleteReport(r.id)} style={btnDelete}>Șterge</button>
+                            <hr style={{ margin: '2px 0', border: 'none', borderTop: '1px solid #eee' }} />
+                            <button onClick={() => deleteReport(r.id)} style={btnEdit}>
+                              Șterge raport
+                            </button>
+                          </div>
                         </Td>
                       </tr>
                     );
