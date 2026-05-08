@@ -5,6 +5,8 @@ import * as notesController from '../controllers/notes.controller.js';
 import * as ratingsController from '../controllers/ratings.controller.js';
 import * as commentsController from '../controllers/comments.controller.js';
 import * as reportsController from '../controllers/reports.controller.js';
+import * as duplicatesController from '../controllers/duplicates.controller.js';
+import * as quizController from '../controllers/quiz.controller.js';
 
 const router = Router();
 
@@ -28,8 +30,24 @@ router.get('/:id/comments', commentsController.list);
 router.post('/', requireAuth, withUpload, notesController.create);
 router.put('/:id', requireAuth, notesController.update);
 router.delete('/:id', requireAuth, notesController.remove);
+
+// Rating endpoints
 router.post('/:id/ratings', requireAuth, ratingsController.create);
+router.delete('/:id/ratings', requireAuth, ratingsController.deleteRating);
+router.get('/:id/rating', requireAuth, ratingsController.getUserRating);
+
+// Comments endpoints
 router.post('/:id/comments', requireAuth, commentsController.create);
+router.delete('/:id/comments/:commentId', requireAuth, commentsController.deleteComment);
+router.put('/:id/comments/:commentId', requireAuth, commentsController.updateComment);
+
+// Quiz generator
+router.get('/:id/quiz', requireAuth, quizController.generate);
+
+// Reports
 router.post('/:id/reports', requireAuth, reportsController.create);
+
+// Duplicate detection
+router.post('/check/duplicates', requireAuth, duplicatesController.check);
 
 export default router;

@@ -1,11 +1,9 @@
-// Controller pentru notițe.
-// Pentru skeleton, logica e direct aici. Când crește, mut-o în services/notes.service.js
-// (același pattern ca auth.service.js).
-
 import fs from 'fs';
 import path from 'path';
 import { prisma } from '../db/prismaClient.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { validateRequest, CreateNoteSchema, UpdateNoteSchema, DuplicateCheckSchema } from '../middleware/validators.js';
+import { fingerprintText, compareFingerprints } from '../services/shingling.service.js';
 
 const VALID_TYPES = ['REZUMAT', 'EXERCITII', 'FISA', 'HARTA_CONCEPTUALA'];
 
@@ -69,16 +67,26 @@ export async function getById(req, res, next) {
       where: { id: req.params.id },
       include: {
         author: { select: { id: true, username: true } },
-        // TODO: include comments cu user-ul lor
+        comments: {
+          where: { parentId: null },
+          include: {
+            user: { select: { id: true, username: true } },
+            replies: {
+              include: { user: { select: { id: true, username: true } } },
+            },
+          },
+        },
       },
     });
     if (!note) throw new AppError('Notiță inexistentă', 404);
 
-    // TODO: incrementează viewCount.
-    // Atenție:
-    //   - nu mări dacă e autorul (req.user?.id === note.authorId)
-    //   - nu mări de mai multe ori în aceeași sesiune (poți pune un Set în memorie sau
-    //     verifica IP+noteId într-un tabel View dacă vrei rigoare)
+    // Incrementează viewCount (dacă nu e autorul)
+    if (req.user?.id !== note.authorId) {
+      await prisma.note.update({
+        where: { id: req.params.id },
+        data: { viewCount: { increment: 1 } },
+      });
+    }
 
     res.json(note);
   } catch (err) {
@@ -90,7 +98,7 @@ export async function getById(req, res, next) {
 // Creare notiță. Acceptă multipart/form-data (câmpuri text + fișier opțional).
 export async function create(req, res, next) {
   try {
-    const { title, subject, gradeLevel, chapter, type } = req.body;
+    const validated = validateRequest(CreateNoteSchema, req.body);
 
     // `content` vine ca JSON string din FormData; poate lipsi dacă nota e doar fișier.
     let content = null;
@@ -98,24 +106,22 @@ export async function create(req, res, next) {
       try { content = JSON.parse(req.body.content); } catch { content = null; }
     }
 
-    if (!title || !subject || !gradeLevel || !type) {
-      throw new AppError('Câmpurile titlu, materie, clasă și tip sunt obligatorii.', 400);
-    }
-    if (!VALID_TYPES.includes(type)) {
-      throw new AppError('Tip de notiță invalid.', 400);
-    }
-
     const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+    // Generează fingerprint pentru duplicate detection
+    const textContent = typeof content === 'string' ? content : JSON.stringify(content || '');
+    const contentHash = fingerprintText(textContent);
 
     const note = await prisma.note.create({
       data: {
-        title,
-        subject,
-        gradeLevel: Number(gradeLevel),
-        chapter: chapter || null,
-        type,
+        title: validated.title,
+        subject: validated.subject,
+        gradeLevel: validated.gradeLevel,
+        chapter: validated.chapter || null,
+        type: validated.type,
         content,
         fileUrl,
+        contentHash,
         authorId: req.user.id,
       },
     });
@@ -133,18 +139,29 @@ export async function create(req, res, next) {
 // Actualizare notiță. Doar autorul. Câmpuri permise: title, chapter, content.
 export async function update(req, res, next) {
   try {
+    const validated = validateRequest(UpdateNoteSchema, req.body);
+
     const note = await prisma.note.findUnique({ where: { id: req.params.id } });
     if (!note) throw new AppError('Notiță inexistentă', 404);
     if (note.authorId !== req.user.id) throw new AppError('Nu ai voie să modifici', 403);
 
-    const { title, chapter, content } = req.body;
+    const data = {};
+    if (validated.title !== undefined) data.title = validated.title;
+    if (validated.chapter !== undefined) data.chapter = validated.chapter || null;
+    if (validated.content !== undefined) data.content = validated.content;
+    if (validated.subject !== undefined) data.subject = validated.subject;
+    if (validated.gradeLevel !== undefined) data.gradeLevel = validated.gradeLevel;
+    if (validated.type !== undefined) data.type = validated.type;
+
+    // Dacă se actualizează content, regenerează fingerprint
+    if (data.content !== undefined) {
+      const textContent = typeof data.content === 'string' ? data.content : JSON.stringify(data.content || '');
+      data.contentHash = fingerprintText(textContent);
+    }
+
     const updated = await prisma.note.update({
       where: { id: note.id },
-      data: {
-        ...(title !== undefined && { title }),
-        ...(chapter !== undefined && { chapter: chapter || null }),
-        ...(content !== undefined && { content }),
-      },
+      data,
     });
     res.json(updated);
   } catch (err) {

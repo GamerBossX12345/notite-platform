@@ -5,6 +5,25 @@
 //   3. trimite răspuns sau next(err)
 
 import * as authService from '../services/auth.service.js';
+import { prisma } from '../db/prismaClient.js';
+import { AppError } from '../middleware/errorHandler.js';
+
+export async function me(req, res, next) {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true, email: true, username: true,
+        name: true, school: true, grade: true,
+        reputation: true, createdAt: true,
+      },
+    });
+    if (!user) throw new AppError('Utilizator inexistent', 404);
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+}
 
 export async function register(req, res, next) {
   try {

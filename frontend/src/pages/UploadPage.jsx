@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { api } from '../api/client.js';
+import { useEditorSetup, TipTapEditor } from '../components/TipTapEditor.jsx';
 
 const NOTE_TYPES = [
   { value: 'REZUMAT',          label: 'Rezumat' },
@@ -29,13 +30,13 @@ export default function UploadPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const editor = useEditorSetup();
 
   const [title, setTitle]           = useState('');
   const [subject, setSubject]       = useState('');
   const [gradeLevel, setGradeLevel] = useState(9);
   const [chapter, setChapter]       = useState('');
   const [type, setType]             = useState('REZUMAT');
-  const [contentText, setContentText] = useState('');
   const [file, setFile]             = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [error, setError]           = useState(null);
@@ -45,7 +46,6 @@ export default function UploadPage() {
     if (!loading && !user) navigate('/login', { replace: true });
   }, [loading, user, navigate]);
 
-  // Eliberează object URL când se schimbă fișierul
   useEffect(() => {
     return () => { if (filePreview) URL.revokeObjectURL(filePreview); };
   }, [filePreview]);
@@ -81,8 +81,8 @@ export default function UploadPage() {
     e.preventDefault();
     setError(null);
 
-    if (!contentText.trim() && !file) {
-      setError('Adaugă conținut text sau un fișier atașat (cel puțin unul dintre ele).');
+    if (!editor?.getHTML().trim() && !file) {
+      setError('Adaugă conținut în editor sau un fișier atașat.');
       return;
     }
 
@@ -95,12 +95,9 @@ export default function UploadPage() {
       if (chapter) formData.append('chapter', chapter);
       formData.append('type', type);
 
-      if (contentText.trim()) {
-        const content = {
-          type: 'doc',
-          content: [{ type: 'paragraph', content: [{ type: 'text', text: contentText }] }],
-        };
-        formData.append('content', JSON.stringify(content));
+      // Trimite HTML din editor
+      if (editor?.getHTML().trim()) {
+        formData.append('content', editor.getHTML());
       }
 
       if (file) formData.append('file', file);
@@ -115,8 +112,8 @@ export default function UploadPage() {
   }
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <h1>Notiță nouă</h1>
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      <h1>📝 Notiță nouă</h1>
       <form onSubmit={handleSubmit}>
 
         <label style={labelStyle}>
@@ -171,6 +168,12 @@ export default function UploadPage() {
           />
         </label>
 
+        {/* Editor TipTap */}
+        <label style={labelStyle}>
+          Conținut <span style={{ color: '#888', fontWeight: 400 }}>(folosești editor cu suport KaTeX pentru formule)</span>
+          <TipTapEditor editor={editor} />
+        </label>
+
         {/* Fișier atașat */}
         <div style={{ marginBottom: 16 }}>
           <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>
@@ -209,19 +212,7 @@ export default function UploadPage() {
           )}
         </div>
 
-        {/* Conținut text */}
-        <label style={labelStyle}>
-          Conținut text <span style={{ color: '#888', fontWeight: 400 }}>(opțional dacă ai atașat un fișier)</span>
-          <textarea
-            value={contentText}
-            onChange={e => setContentText(e.target.value)}
-            rows={10}
-            placeholder="Scrie conținutul notiței aici..."
-            style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
-          />
-        </label>
-
-        {error && <p style={{ color: 'red', marginBottom: 12 }}>{error}</p>}
+        {error && <p style={{ color: 'red', marginBottom: 12 }}>❌ {error}</p>}
 
         <button type="submit" disabled={submitting} style={btnSubmitStyle}>
           {submitting ? 'Se publică...' : 'Publică notița'}

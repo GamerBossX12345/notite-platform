@@ -25,7 +25,10 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
-    setLoading(false);
+    api.get('/auth/me')
+      .then(res => setUser(res.data))
+      .catch(() => localStorage.removeItem('token'))
+      .finally(() => setLoading(false));
   }, []);
 
   async function login(identifier, password) {

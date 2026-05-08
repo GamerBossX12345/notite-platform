@@ -2,8 +2,11 @@ import { Fragment, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { RatingStars, RatingStarsDisplay } from '../components/RatingStars.jsx';
+import { CommentsSection } from '../components/CommentsSection.jsx';
+import { QuizModal } from '../components/QuizModal.jsx';
 
-const BACKEND_URL = new URL(api.defaults.baseURL).origin; // 'http://localhost:3000'
+const BACKEND_URL = new URL(api.defaults.baseURL).origin;
 
 const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp']);
 function fileType(url) {
@@ -57,42 +60,9 @@ function FileAttachment({ fileUrl }) {
   );
 }
 
-// Randează conținut TipTap JSON (format ProseMirror) în React
-function renderNode(node, key) {
-  if (!node) return null;
-  const children = node.content?.map((child, i) => renderNode(child, i));
-
-  switch (node.type) {
-    case 'doc':
-      return <Fragment key={key}>{children}</Fragment>;
-    case 'paragraph':
-      return <p key={key} style={{ margin: '0 0 12px' }}>{children ?? <br />}</p>;
-    case 'text': {
-      let el = node.text;
-      node.marks?.forEach(mark => {
-        if (mark.type === 'bold')      el = <strong key={key}>{el}</strong>;
-        if (mark.type === 'italic')    el = <em key={key}>{el}</em>;
-        if (mark.type === 'underline') el = <u key={key}>{el}</u>;
-        if (mark.type === 'code')      el = <code key={key} style={inlineCodeStyle}>{el}</code>;
-      });
-      return <Fragment key={key}>{el}</Fragment>;
-    }
-    case 'heading': {
-      const Tag = `h${node.attrs?.level ?? 1}`;
-      return <Tag key={key}>{children}</Tag>;
-    }
-    case 'bulletList':     return <ul key={key}>{children}</ul>;
-    case 'orderedList':    return <ol key={key}>{children}</ol>;
-    case 'listItem':       return <li key={key}>{children}</li>;
-    case 'hardBreak':      return <br key={key} />;
-    case 'horizontalRule': return <hr key={key} />;
-    case 'blockquote':
-      return <blockquote key={key} style={blockquoteStyle}>{children}</blockquote>;
-    case 'codeBlock':
-      return <pre key={key} style={codeBlockStyle}><code>{children}</code></pre>;
-    default:
-      return null;
-  }
+// Randează conținut HTML din TipTap
+function renderHTML(html) {
+  return <div dangerouslySetInnerHTML={{ __html: html }} style={{ lineHeight: 1.8 }} />;
 }
 
 const REPORT_REASONS = [
@@ -110,15 +80,11 @@ export default function NotePage() {
   const [note, setNote]       = useState(null);
   const [error, setError]     = useState(null);
   const [comments, setComments] = useState([]);
+  const [quizModalOpen, setQuizModalOpen] = useState(false);
 
   // Rating
-  const [ratingHover, setRatingHover]           = useState(0);
   const [userRating, setUserRating]             = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
-
-  // Comments
-  const [commentText, setCommentText]               = useState('');
-  const [submittingComment, setSubmittingComment]   = useState(false);
 
   // Edit inline
   const [editing, setEditing]       = useState(false);
@@ -141,27 +107,33 @@ export default function NotePage() {
     api.get(`/notes/${id}/comments`)
       .then(res => setComments(res.data))
       .catch(() => {});
-  }, [id]);
+    // Obține ratingul utilizatorului dacă e logat
+    if (user) {
+      api.get(`/notes/${id}/rating`)
+        .then(res => { if (res.data.value) setUserRating(res.data.value); })
+        .catch(() => {});
+    }
+  }, [id, user]);
 
-  if (error) return <p style={{ color: 'red' }}>Eroare: {error}</p>;
+  if (error) return <p style={{ color: 'red' }}>❌ Eroare: {error}</p>;
   if (!note)  return <p>Se încarcă...</p>;
 
-  // --- Rating ---
   async function handleRate(value) {
     if (!user || isAuthor || submittingRating) return;
     setSubmittingRating(true);
     try {
-      const { data } = await api.post(`/notes/${id}/ratings`, { value });
-      setNote(prev => ({ ...prev, avgRating: data.avgRating, ratingCount: data.ratingCount }));
+      await api.post(`/notes/${id}/ratings`, { value });
       setUserRating(value);
-    } catch {
-      // ignoră erori (ex: vot propriu, neautentificat)
+      // Reîncarcă nota pentru statistici actualizate
+      const { data } = await api.get(`/notes/${id}`);
+      setNote(data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la vot');
     } finally {
       setSubmittingRating(false);
     }
   }
 
-  // --- Delete ---
   async function handleDelete() {
     if (!confirm('Sigur vrei să ștergi această notiță? Acțiunea este ireversibilă.')) return;
     try {
@@ -172,7 +144,6 @@ export default function NotePage() {
     }
   }
 
-  // --- Edit ---
   function openEdit() {
     setEditTitle(note.title);
     setEditChapter(note.chapter || '');
@@ -193,23 +164,6 @@ export default function NotePage() {
     }
   }
 
-  // --- Comments ---
-  async function handleCommentSubmit(e) {
-    e.preventDefault();
-    if (!commentText.trim()) return;
-    setSubmittingComment(true);
-    try {
-      const { data } = await api.post(`/notes/${id}/comments`, { content: commentText.trim() });
-      setComments(prev => [...prev, data]);
-      setCommentText('');
-    } catch (err) {
-      alert(err.response?.data?.error || 'Eroare la comentariu');
-    } finally {
-      setSubmittingComment(false);
-    }
-  }
-
-  // --- Report ---
   async function handleReportSubmit(e) {
     e.preventDefault();
     setSubmittingReport(true);
@@ -217,7 +171,7 @@ export default function NotePage() {
       await api.post(`/notes/${id}/reports`, { reason: reportReason, details: reportDetails });
       setShowReport(false);
       setReportDetails('');
-      alert('Raportul a fost trimis. Mulțumim!');
+      alert('✅ Raportul a fost trimis. Mulțumim!');
     } catch (err) {
       alert(err.response?.data?.error || 'Eroare la raportare');
     } finally {
@@ -286,10 +240,10 @@ export default function NotePage() {
         </div>
       )}
 
-      {/* Conținut text */}
+      {/* Conținut */}
       {note.content && (
-        <div style={{ marginTop: 24, lineHeight: 1.8 }}>
-          {renderNode(note.content, 'root')}
+        <div style={{ marginTop: 24 }}>
+          {renderHTML(note.content)}
         </div>
       )}
 
@@ -298,42 +252,43 @@ export default function NotePage() {
       )}
 
       {/* Rating */}
-      <section style={{ marginTop: 40 }}>
-        <h3 style={{ marginBottom: 8 }}>Evaluare</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {[1, 2, 3, 4, 5].map(star => (
-            <span
-              key={star}
-              style={{
-                fontSize: 30,
-                cursor: user && !isAuthor ? 'pointer' : 'default',
-                opacity: submittingRating ? 0.5 : 1,
-                lineHeight: 1,
-              }}
-              onMouseEnter={() => user && !isAuthor && setRatingHover(star)}
-              onMouseLeave={() => setRatingHover(0)}
-              onClick={() => handleRate(star)}
-            >
-              {star <= (ratingHover || userRating || Math.round(note.avgRating)) ? '★' : '☆'}
-            </span>
-          ))}
-          {note.ratingCount > 0 && (
-            <span style={{ color: '#666', fontSize: 14, marginLeft: 4 }}>
-              {note.avgRating.toFixed(1)} ({note.ratingCount} {note.ratingCount === 1 ? 'vot' : 'voturi'})
-            </span>
-          )}
-        </div>
-        {!user && (
-          <p style={{ fontSize: 13, color: '#888', marginTop: 6 }}>
+      <section style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid #e0e0e0' }}>
+        <h3 style={{ marginBottom: 12 }}>⭐ Evaluare</h3>
+        {isAuthor ? (
+          <p style={{ color: '#888', fontSize: 14 }}>Nu poți vota propria notiță.</p>
+        ) : user ? (
+          <RatingStars
+            noteId={id}
+            currentRating={userRating}
+            onRate={handleRate}
+          />
+        ) : (
+          <p style={{ color: '#888', fontSize: 14 }}>
             <Link to="/login">Autentifică-te</Link> pentru a vota.
           </p>
         )}
-        {isAuthor && (
-          <p style={{ fontSize: 13, color: '#888', marginTop: 6 }}>Nu poți vota propria notiță.</p>
-        )}
-        {userRating > 0 && (
-          <p style={{ fontSize: 13, color: '#0066cc', marginTop: 6 }}>Ai votat cu {userRating} stele.</p>
-        )}
+        <div style={{ marginTop: 12 }}>
+          <RatingStarsDisplay rating={note.avgRating} count={note.ratingCount} />
+        </div>
+      </section>
+
+      {/* Quiz */}
+      <section style={{ marginTop: 24 }}>
+        <button
+          onClick={() => setQuizModalOpen(true)}
+          style={{
+            padding: '10px 16px',
+            backgroundColor: '#4caf50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            fontSize: '14px',
+          }}
+        >
+          📝 Generează Quiz cu AI
+        </button>
+        <QuizModal noteId={id} isOpen={quizModalOpen} onClose={() => setQuizModalOpen(false)} />
       </section>
 
       {/* Raportează */}
@@ -343,7 +298,7 @@ export default function NotePage() {
             onClick={() => setShowReport(true)}
             style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, textDecoration: 'underline', padding: 0 }}
           >
-            Raportează notița
+            ⚠️ Raportează notița
           </button>
         </div>
       )}
@@ -384,59 +339,8 @@ export default function NotePage() {
         </div>
       )}
 
-      {/* Comentarii */}
-      <section style={{ marginTop: 40 }}>
-        <h3>Comentarii ({comments.length})</h3>
-        {comments.length === 0 ? (
-          <p style={{ color: '#888' }}>Niciun comentariu încă.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            {comments.map(comment => (
-              <li key={comment.id} style={commentItemStyle}>
-                <p style={{ margin: 0, fontSize: 13 }}>
-                  <Link to={`/profile/${comment.user.username}`} style={{ fontWeight: 600, color: '#333' }}>
-                    {comment.user.username}
-                  </Link>
-                  <span style={{ color: '#bbb', marginLeft: 8 }}>
-                    {new Date(comment.createdAt).toLocaleDateString('ro-RO')}
-                  </span>
-                </p>
-                <p style={{ margin: '6px 0 0' }}>{comment.content}</p>
-                {comment.replies?.map(reply => (
-                  <div key={reply.id} style={replyStyle}>
-                    <p style={{ margin: 0, fontSize: 13 }}>
-                      <Link to={`/profile/${reply.user.username}`} style={{ fontWeight: 600, color: '#333' }}>
-                        {reply.user.username}
-                      </Link>
-                    </p>
-                    <p style={{ margin: '4px 0 0' }}>{reply.content}</p>
-                  </div>
-                ))}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {user ? (
-          <form onSubmit={handleCommentSubmit} style={{ marginTop: 16 }}>
-            <textarea
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              placeholder="Adaugă un comentariu..."
-              rows={3}
-              required
-              style={{ ...inputStyle, display: 'block', resize: 'vertical' }}
-            />
-            <button type="submit" disabled={submittingComment} style={{ ...btnPrimary, marginTop: 8 }}>
-              {submittingComment ? 'Se trimite...' : 'Comentează'}
-            </button>
-          </form>
-        ) : (
-          <p style={{ color: '#888', fontSize: 14, marginTop: 12 }}>
-            <Link to="/login">Autentifică-te</Link> pentru a comenta.
-          </p>
-        )}
-      </section>
+      {/* Comentarii cu threading */}
+      <CommentsSection noteId={id} initialComments={comments} />
     </article>
   );
 }
@@ -477,17 +381,6 @@ const btnDanger = {
   borderRadius: 4,
   cursor: 'pointer',
 };
-const commentItemStyle = {
-  padding: '12px 0',
-  borderBottom: '1px solid #f0f0f0',
-};
-const replyStyle = {
-  marginTop: 8,
-  marginLeft: 20,
-  padding: '8px 12px',
-  background: '#f9f9f9',
-  borderRadius: 6,
-};
 const modalOverlay = {
   position: 'fixed',
   top: 0, left: 0, right: 0, bottom: 0,
@@ -516,23 +409,4 @@ const docLinkStyle = {
   color: '#333',
   background: '#fafafa',
   fontSize: 14,
-};
-const inlineCodeStyle = {
-  background: '#f0f0f0',
-  padding: '1px 4px',
-  borderRadius: 3,
-  fontFamily: 'monospace',
-};
-const blockquoteStyle = {
-  borderLeft: '3px solid #ccc',
-  margin: '0 0 12px',
-  paddingLeft: 16,
-  color: '#555',
-};
-const codeBlockStyle = {
-  background: '#f5f5f5',
-  padding: 12,
-  borderRadius: 6,
-  overflow: 'auto',
-  marginBottom: 12,
 };
