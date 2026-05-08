@@ -1,0 +1,13 @@
+// Hook custom pentru acces facil la AuthContext.
+// În loc de useContext(AuthContext) cu verificare manuală, folosești useAuth().
+
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext.jsx';
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error('useAuth trebuie folosit în interiorul unui <AuthProvider>');
+  }
+  return ctx;
+}
