@@ -12,6 +12,11 @@ const NOTE_TYPES = [
   { value: 'FORMULE',           label: 'Formule' },
 ];
 
+const SUBJECTS = [
+  'Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică',
+  'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză',
+  'Filosofie', 'Economie', 'Psihologie',
+];
 const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
 const MAX_FILE_MB  = 20;
 
@@ -34,7 +39,7 @@ export default function UploadPage() {
   const editor = useEditorSetup();
 
   const [title, setTitle]           = useState('');
-  const [subject, setSubject]       = useState('');
+  const [subject, setSubject]       = useState('Matematică');
   const [gradeLevel, setGradeLevel] = useState(9);
   const [chapter, setChapter]       = useState('');
   const [type, setType]             = useState('REZUMAT');
@@ -136,10 +141,10 @@ export default function UploadPage() {
 
         <label style={labelStyle}>
           Materie
-          <input type="text" value={subject} onChange={e => setSubject(e.target.value)}
-            required placeholder="ex: Matematică, Fizică, Istorie..." style={inputStyle} />
+          <select value={subject} onChange={e => setSubject(e.target.value)} style={inputStyle}>
+            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
         </label>
-
         <div style={{ display: 'flex', gap: 12 }}>
           <label style={{ ...labelStyle, flex: 1 }}>
             Clasa

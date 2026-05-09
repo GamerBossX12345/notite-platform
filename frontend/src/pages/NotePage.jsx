@@ -101,6 +101,8 @@ export default function NotePage() {
   const [submittingReport, setSubmittingReport]   = useState(false);
 
   const isAuthor = user && note && user.id === note.authorId;
+  const isAdmin  = user?.role === 'ADMIN';
+  const canManage = isAuthor || isAdmin;
 
   useEffect(() => {
     api.get(`/notes/${id}`)
@@ -139,7 +141,8 @@ export default function NotePage() {
   async function handleDelete() {
     if (!confirm('Sigur vrei să ștergi această notiță? Acțiunea este ireversibilă.')) return;
     try {
-      await api.delete(`/notes/${id}`);
+      const url = isAuthor ? `/notes/${id}` : `/admin/notes/${id}`;
+      await api.delete(url);
       navigate('/');
     } catch (err) {
       alert(err.response?.data?.error || 'Eroare la ștergere');
@@ -156,7 +159,10 @@ export default function NotePage() {
     e.preventDefault();
     setSavingEdit(true);
     try {
-      const { data } = await api.put(`/notes/${id}`, { title: editTitle, chapter: editChapter });
+      const payload = { title: editTitle, chapter: editChapter };
+      const { data } = isAuthor
+        ? await api.put(`/notes/${id}`, payload)
+        : await api.patch(`/admin/notes/${id}`, payload);
       setNote(prev => ({ ...prev, ...data }));
       setEditing(false);
     } catch (err) {
@@ -233,7 +239,7 @@ export default function NotePage() {
               <strong>{note.author.username}</strong>
             </Link>
           </p>
-          {isAuthor && (
+          {canManage && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
               <button onClick={openEdit} style={btnSecondary}>Editează</button>
               <button onClick={handleDelete} style={btnDanger}>Șterge</button>

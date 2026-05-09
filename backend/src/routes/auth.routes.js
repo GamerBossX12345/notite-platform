@@ -8,6 +8,8 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.get('/me', requireAuth, authController.me);
 router.patch('/settings', requireAuth, authController.updateSettings);
+router.patch('/profile', requireAuth, authController.updateProfile);
+router.delete('/account', requireAuth, authController.deleteAccount);
 router.get('/users/:username', authController.getPublicProfile);
 
 // TODO: endpoint /me care întoarce user-ul curent (folosește requireAuth).

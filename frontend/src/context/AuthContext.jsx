@@ -13,23 +13,32 @@ export const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
 
-  // La montare, dacă există token, încercăm să obținem user-ul.
-  // TODO: pe backend creează endpoint GET /auth/me care întoarce user-ul
-  // pe baza tokenului din header. Apoi aici:
-  //   api.get('/auth/me').then(res => setUser(res.data)).catch(() => {})
-  //                      .finally(() => setLoading(false));
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
       setLoading(false);
+      applyTheme(true);
       return;
     }
     api.get('/auth/me')
-      .then(res => setUser(res.data))
+      .then(res => {
+        setUser(res.data);
+        setDarkMode(res.data.darkMode ?? true);
+        applyTheme(res.data.darkMode ?? true);
+      })
       .catch(() => localStorage.removeItem('token'))
       .finally(() => setLoading(false));
   }, []);
+
+  function applyTheme(isDark) {
+    if (isDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  }
 
   async function login(identifier, password) {
     const { data } = await api.post('/auth/login', { identifier, password });
@@ -57,8 +66,21 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  async function updateDarkMode(isDark) {
+    setDarkMode(isDark);
+    applyTheme(isDark);
+    if (user) {
+      try {
+        await api.patch('/auth/settings', { darkMode: isDark });
+        setUser(prev => ({ ...prev, darkMode: isDark }));
+      } catch (err) {
+        console.error('Failed to save theme preference:', err);
+      }
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, darkMode, updateDarkMode }}>
       {children}
     </AuthContext.Provider>
   );

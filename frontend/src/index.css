@@ -115,11 +115,7 @@ body::after {
 #root {
   position: relative;
   z-index: 1;
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: left;
-  border-inline: 1px solid rgba(100, 50, 180, 0.2);
+  width: 100%;
   min-height: 100svh;
   display: flex;
   flex-direction: column;
@@ -170,4 +166,85 @@ code {
   line-height: 135%;
   padding: 4px 8px;
   background: rgba(80, 40, 140, 0.25);
+}
+
+/* Light Mode */
+[data-theme="light"] {
+  color-scheme: light;
+  color: #333;
+}
+
+[data-theme="light"] body {
+  background: linear-gradient(135deg, #fff0f8 0%, #f0fffe 50%, #ffe8f5 100%);
+}
+
+[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 38% 28% at 18% 22%, rgba(255, 100, 180, 0.5) 0%, transparent 70%),
+    radial-gradient(ellipse 30% 22% at 78% 12%, rgba(0, 200, 210, 0.45) 0%, transparent 70%),
+    radial-gradient(ellipse 26% 20% at 55% 78%, rgba(255, 80, 160, 0.4) 0%, transparent 70%),
+    radial-gradient(ellipse 22% 18% at 88% 65%, rgba(0, 180, 200, 0.4) 0%, transparent 70%),
+    radial-gradient(ellipse 20% 16% at 12% 80%, rgba(255, 120, 190, 0.35) 0%, transparent 70%);
+  animation: pulse1 6s ease-in-out infinite;
+}
+
+[data-theme="light"] body::after {
+  background:
+    radial-gradient(ellipse 28% 20% at 40% 10%, rgba(0, 210, 220, 0.4) 0%, transparent 70%),
+    radial-gradient(ellipse 24% 18% at 92% 40%, rgba(255, 100, 175, 0.4) 0%, transparent 70%),
+    radial-gradient(ellipse 32% 24% at 8% 50%, rgba(0, 190, 205, 0.35) 0%, transparent 70%),
+    radial-gradient(ellipse 20% 16% at 65% 90%, rgba(255, 90, 165, 0.35) 0%, transparent 70%);
+  animation: pulse2 9s ease-in-out infinite;
+}
+
+[data-theme="light"] #root {
+  background: rgba(255, 255, 255, 0.55);
+  color: #333;
+}
+
+[data-theme="light"] h1,
+[data-theme="light"] h2 {
+  color: #1a1a1a;
+}
+
+[data-theme="light"] code {
+  background: #f0f0f0;
+  color: #333;
+}
+
+[data-theme="light"] p {
+  color: #555;
+}
+
+[data-theme="light"] a {
+  color: #6366f1;
+}
+
+[data-theme="light"] input,
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background: #fff;
+  border-color: #ddd;
+  color: #333;
+}
+
+[data-theme="light"] button {
+  background: linear-gradient(135deg, #f472b6 0%, #22d3ee 100%);
+  color: white;
+  border-color: transparent;
+}
+
+[data-theme="light"] nav {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border-bottom: 1px solid rgba(244, 114, 182, 0.3);
+}
+
+[data-theme="light"] nav a {
+  color: #be185d;
+}
+
+[data-theme="light"] nav button {
+  background: rgba(244, 114, 182, 0.2);
+  border: 1px solid rgba(244, 114, 182, 0.4);
+  color: #be185d;
 }

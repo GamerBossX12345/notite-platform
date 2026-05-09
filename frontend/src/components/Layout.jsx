@@ -91,8 +91,11 @@ const navStyle = {
   gap: 16,
   padding: '12px 24px',
   borderBottom: '1px solid rgba(120, 60, 200, 0.3)',
-  background: 'rgba(20, 8, 50, 0.9)',
-  backdropFilter: 'blur(8px)',
+  background: 'rgba(20, 8, 50, 0.5)',
+  backdropFilter: 'blur(12px)',
+  position: 'sticky',
+  top: 0,
+  zIndex: 100,
 };
 
 const linkStyle = {

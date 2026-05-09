@@ -68,3 +68,7 @@ export async function login({ identifier, password }) {
 function generateToken(userId, username) {
   return jwt.sign({ userId, username }, process.env.JWT_SECRET, { expiresIn: '7d' });
 }
+
+export async function verifyPassword(password, passwordHash) {
+  return bcrypt.compare(password, passwordHash);
+}
