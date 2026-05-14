@@ -6,7 +6,7 @@ Schelet de start pentru lucrarea la secțiunea Aplicații Web.
 ## Stack
 - Backend: Node.js, Express, Prisma, PostgreSQL, JWT
 - Frontend: React (Vite), React Router, Axios
-- AI (în pasul 11): Claude API pentru generator de quiz
+- AI (în pasul 11): API pentru generator de quiz
 
 ## Setup pas cu pas
 
