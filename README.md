@@ -1,12 +1,23 @@
-# Platformă de schimb de notițe — InfoEducație
+# Notițe Platform
 
-Schelet de start pentru lucrarea la secțiunea Aplicații Web.
-**Scopul scheletului**: structura proiectului + cod minim funcțional pentru auth și un endpoint de notițe. De aici încolo construiești singur features-urile importante.
+Platformă colaborativă de notițe școlare pentru elevi de gimnaziu și liceu din România.
 
 ## Stack
+<<<<<<< Updated upstream
+- Backend: Node.js, Express, Prisma, PostgreSQL, JWT
+- Frontend: React (Vite), React Router, Axios
+- AI (în pasul 11): Claude API pentru generator de quiz
+=======
+<<<<<<< HEAD
+=======
 - Backend: Node.js, Express, Prisma, PostgreSQL, JWT
 - Frontend: React (Vite), React Router, Axios
 - AI (în pasul 11): API pentru generator de quiz
+<<<<<<< HEAD
+>>>>>>> 5fac4b3bb1cebd7bb9ecc506d39c508252f0d42b
+=======
+>>>>>>> 5fac4b3bb1cebd7bb9ecc506d39c508252f0d42b
+>>>>>>> Stashed changes
 
 ## Setup pas cu pas
 
@@ -15,84 +26,95 @@ Instalează PostgreSQL. La instalare, reține parola pentru user-ul `postgres`.
 
 Creează baza de date:
 ```bash
-# Pe Windows: deschide pgAdmin sau folosește SQL Shell (psql)
-# Pe Linux/Mac:
-psql -U postgres -c "CREATE DATABASE notite_platform;"
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
-### 2. Backend
+### 2. Variabile de mediu
+
+Creează `backend/.env`:
+
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/notite_platform"
+JWT_SECRET="un_string_random_lung"
+CHATBOT_API_KEY="gsk_..."      # Groq API key (quiz + AI chat)
+MODERATION_API_KEY="gsk_..."   # Groq API key (moderare rapoarte)
+PORT=3000
+```
+
+### 3. Baza de date
+
 ```bash
-cd backend
-npm install
-cp .env.example .env
-# editează .env și pune parola ta de PostgreSQL în DATABASE_URL
-# generează și un JWT_SECRET random (64+ caractere)
+# Activează pgvector și adaugă coloana de embeddings (o singură dată)
+psql $DATABASE_URL -f backend/prisma/add_embeddings.sql
 
-npm run prisma:migrate     # creează tabelele
-npm run dev                # pornește serverul pe :3000
+# Sincronizează schema
+cd backend && npx prisma db push
+
+# Populează cu date demo (opțional)
+npm run seed
 ```
 
-Verifică: deschide `http://localhost:3000/api/health` în browser.
+### 4. Pornește
 
-### 3. Frontend
-Într-un alt terminal:
 ```bash
-cd frontend
-npm install
-npm run dev                # pornește pe :5173
+# Terminal 1 — backend (http://localhost:3000)
+cd backend && npm run dev
+
+# Terminal 2 — frontend (http://localhost:5173)
+cd frontend && npm run dev
 ```
 
-### 4. Test rapid
-- Deschide `http://localhost:5173`
-- Click pe "Înregistrare" → creează cont
-- Ar trebui să fii logat și să vezi pagina principală goală
-- Cu Prisma Studio (`npm run prisma:studio` în backend) verifici că user-ul e în DB
+## Funcționalități
 
-## Ce e gata în skeleton ✓
-- Structura proiectului, separare Routes/Controllers/Services
-- Schema Prisma completă (User, Note, Rating, Comment, Report)
-- Auth: register, login cu bcrypt + JWT
-- Middleware: requireAuth, errorHandler
-- Endpoint GET /api/notes (listare) și GET /api/notes/:id (detaliu)
-- Frontend: routing, AuthContext, pagini Login/Register/Home/Note (basic)
+### Notițe
+- Editor rich-text cu suport bold, italic, liste, tabele, formule LaTeX (KaTeX)
+- Upload fișiere atașate: PDF, imagini, Word, PowerPoint
+- Filtrare după materie, clasă, tip; sortare după dată / popularitate / rating
+- Detectare automată de duplicate (MinHash + Jaccard similarity)
 
-## Ce trebuie să construiești tu (TODO-uri în cod)
+### Căutare
+- **Clasică** — keyword search pe titlu și materie
+- **Semantică** — embeddings locale cu `multilingual-e5-small` (română inclusă); afișează scor de potrivire procentual
 
-### Backend
-- [ ] Endpoint `GET /api/auth/me` (user-ul curent pe baza tokenului)
-- [ ] Validare strictă în auth.service (regex email, complexitate parolă) — recomand `zod`
-- [ ] Filtre + paginare + search în notes list
-- [ ] Implementare update/delete notițe (cu verificare authorId)
-- [ ] Upload de fișiere PDF/imagine cu `multer`
-- [ ] Endpoint-uri pentru rating cu actualizare tranzacțională a avgRating/ratingCount
-- [ ] Endpoint-uri pentru comments
-- [ ] Endpoint-uri pentru report + dashboard de moderare
-- [ ] **Detector de duplicate** — algoritmul shingling + MinHash (cere-mi explicația)
-- [ ] **AI quiz generator** — endpoint care primește noteId și returnează 5 întrebări
+### AI
+- **Quiz automat** — generează întrebări grilă din conținutul notiței
+- **Chat cu notița** — pune întrebări despre conținut
+- **Moderare rapoarte** — verdict AI automat la raportările utilizatorilor
 
-### Frontend
-- [ ] Pagina UploadPage cu formularul de creare notiță
-- [ ] **Editor TipTap** integrat în UploadPage cu suport pentru formule (KaTeX)
-- [ ] Render conținut TipTap în NotePage (acum e doar JSON dump)
-- [ ] Componenta RatingStars
-- [ ] Secțiunea de comentarii cu threading
-- [ ] Filtre + search bar în HomePage
-- [ ] Paginare
-- [ ] Pagina de profil utilizator
-- [ ] PrivateRoute pentru rute protejate (redirect la /login dacă nu e logat)
-- [ ] Stilizare reală — mută inline styles într-un sistem coerent
-- [ ] Componenta de quiz în NotePage (apelează AI endpoint)
+### Utilizatori & comunitate
+- Înregistrare, login, profil public cu bio și statistici
+- Rating stele (1–5) și comentarii cu threading
+- Sistem de reputație și leaderboard top contributori
+- Temă dark / light modă (persistată în cont)
 
-### Polish pentru juriu
-- [ ] Seed cu 30-50 de notițe reale ca platforma să nu fie goală la demo
-- [ ] Completează README-ul oficial (cerut de regulament) — ce librării ai folosit, ce e al tău
-- [ ] Documentație tehnică
-- [ ] Testează în Chrome, Firefox (regulamentul cere "compatibilitate între browsere")
+### Admin
+- Panou cu gestionare utilizatori, notițe, rapoarte
+- Suspendare utilizatori (48h), editare / ștergere orice notiță
 
-## Întrebări de pus când te blochezi
-1. „Am scris controller-ul X, poți să-l review-ezi?"
-2. „Cum implementez featur-ea Y? Care e abordarea?"
-3. „Primesc eroarea Z, ce înseamnă?"
-4. „Vreau să refactorizez asta, ce sugerezi?"
+## Comenzi
 
-Succes!
+```bash
+# Backend
+npm run dev             # hot-reload
+npm run seed            # date demo în DB
+npm run prisma:studio   # UI vizual pentru DB
+npm run prisma:migrate  # aplică migrații
+
+# Frontend
+npm run dev             # Vite dev server
+npm run build           # build producție
+```
+
+## Conturi demo (după `npm run seed`)
+
+| Email | Parolă | Rol |
+|---|---|---|
+| admin@notite.ro | admin123 | ADMIN |
+| alice@notite.ro | parola123 | USER |
+| bob@notite.ro | parola123 | USER |
+| cara@notite.ro | parola123 | USER |
+
+## Căutare semantică — note
+
+La primul start, modelul `multilingual-e5-small` (~120 MB) se descarcă automat în `backend/.model-cache/`. Embeddings se generează async la crearea/editarea fiecărei notițe și nu blochează răspunsul API.
