@@ -8,6 +8,9 @@ dist/
 build/
 *.log
 
+# Model cache (descărcat automat de @xenova/transformers la runtime)
+backend/.model-cache/
+
 # Environment
 .env
 .env.local
