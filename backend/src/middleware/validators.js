@@ -41,7 +41,7 @@ export const CreateRatingSchema = z.object({
 // Comment schemas
 export const CreateCommentSchema = z.object({
   content: z.string().min(1, 'Comentariu nu poate fi gol').max(5000, 'Comentariu maxim 5000 caractere'),
-  parentId: z.string().optional(),
+  parentId: z.string().nullable().optional(),
 });
 
 // Duplicate check

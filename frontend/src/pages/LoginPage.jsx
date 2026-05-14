@@ -9,17 +9,27 @@ export default function LoginPage() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [deviceNotice, setDeviceNotice] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    setDeviceNotice(null);
     setSubmitting(true);
     try {
       await login(identifier, password);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Eroare la autentificare');
+      const data = err.response?.data;
+      if (data?.code === 'DEVICE_VERIFICATION_REQUIRED') {
+        setDeviceNotice({
+          message: data.error || 'Acces de pe dispozitiv nou. Verifică-ți emailul.',
+          email: data.email,
+        });
+      } else {
+        setError(data?.error || 'Eroare la autentificare');
+      }
     } finally {
       setSubmitting(false);
     }
@@ -51,6 +61,17 @@ export default function LoginPage() {
           />
         </label>
         {error && <p style={{ color: 'red' }}>{error}</p>}
+        {deviceNotice && (
+          <div style={noticeStyle}>
+            <strong>📩 Verificare dispozitiv necesară</strong>
+            <p style={{ margin: '6px 0 0' }}>
+              {deviceNotice.message}
+              {deviceNotice.email && (
+                <> Am trimis un link la <strong>{deviceNotice.email}</strong>.</>
+              )}
+            </p>
+          </div>
+        )}
         <button type="submit" disabled={submitting} style={buttonStyle}>
           {submitting ? 'Se trimite...' : 'Intră în cont'}
         </button>
@@ -78,4 +99,13 @@ const buttonStyle = {
   border: 'none',
   borderRadius: 4,
   cursor: 'pointer',
+};
+const noticeStyle = {
+  padding: 12,
+  background: '#fff7ed',
+  border: '1px solid #fdba74',
+  borderRadius: 6,
+  color: '#9a3412',
+  fontSize: 14,
+  marginBottom: 12,
 };

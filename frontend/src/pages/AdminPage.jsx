@@ -8,7 +8,24 @@ const NOTE_TYPES = [
   { value: 'EXERCITII',         label: 'Exerciții' },
   { value: 'FISA',              label: 'Fișă' },
   { value: 'HARTA_CONCEPTUALA', label: 'Hartă conceptuală' },
+  { value: 'FORMULE',           label: 'Formule' },
 ];
+
+const TYPE_BADGE = {
+  REZUMAT:           { label: 'Rezumat',     bg: '#6366f1', color: 'white' },
+  EXERCITII:         { label: 'Exerciții',   bg: '#10b981', color: 'white' },
+  FISA:              { label: 'Fișă',        bg: '#f59e0b', color: '#3b2a00' },
+  HARTA_CONCEPTUALA: { label: 'Hartă',       bg: '#ec4899', color: 'white' },
+  FORMULE:           { label: 'Formule',     bg: '#06b6d4', color: 'white' },
+};
+
+const SUBJECT_COLORS = ['#f97316', '#10b981', '#06b6d4', '#ec4899', '#8b5cf6', '#ef4444', '#f59e0b', '#0ea5e9', '#84cc16', '#a855f7'];
+function subjectColor(subject) {
+  if (!subject) return '#6b7280';
+  let h = 0;
+  for (let i = 0; i < subject.length; i++) h = (h * 31 + subject.charCodeAt(i)) & 0xffffffff;
+  return SUBJECT_COLORS[Math.abs(h) % SUBJECT_COLORS.length];
+}
 const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
 
 const REASON_LABEL = {
@@ -17,28 +34,76 @@ const REASON_LABEL = {
   SPAM:                'Spam',
   ALTUL:               'Altul',
 };
-const STATUS_STYLE = {
-  PENDING:  { background: '#fff3cd', color: '#856404', label: 'În așteptare' },
-  REVIEWED: { background: '#cce5ff', color: '#004085', label: 'Verificat' },
-  RESOLVED: { background: '#d4edda', color: '#155724', label: 'Rezolvat' },
-};
-const AI_VERDICT_STYLE = {
-  VALID:     { background: '#d4edda', color: '#155724', label: '✔ Valid' },
-  INVALID:   { background: '#f8d7da', color: '#721c24', label: '✘ Invalid' },
-  UNCERTAIN: { background: '#fff3cd', color: '#856404', label: '? Nesigur' },
-};
+function reportStatusStyle(status, darkMode) {
+  if (status === 'PENDING') return {
+    background: darkMode ? 'rgba(245, 158, 11, 0.2)' : '#fff3cd',
+    color:      darkMode ? '#fcd34d' : '#856404',
+    border:     darkMode ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #fcd34d',
+    label: 'În așteptare',
+  };
+  if (status === 'REVIEWED') return {
+    background: darkMode ? 'rgba(59, 130, 246, 0.2)' : '#cce5ff',
+    color:      darkMode ? '#93c5fd' : '#004085',
+    border:     darkMode ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid #93c5fd',
+    label: 'Verificat',
+  };
+  return {
+    background: darkMode ? 'rgba(16, 185, 129, 0.2)' : '#d4edda',
+    color:      darkMode ? '#6ee7b7' : '#155724',
+    border:     darkMode ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #6ee7b7',
+    label: 'Rezolvat',
+  };
+}
+
+// Stiluri AI verdict — adaptate la temă; etichete scurte (motivul rămâne în tooltip).
+function aiVerdictStyle(verdict, darkMode) {
+  if (verdict === 'VALID') return {
+    background: darkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5',
+    color: darkMode ? '#6ee7b7' : '#065f46',
+    border: darkMode ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #34d399',
+    label: '✔ Valid',
+  };
+  if (verdict === 'INVALID') return {
+    background: darkMode ? 'rgba(220, 38, 38, 0.2)' : '#fee2e2',
+    color: darkMode ? '#fca5a5' : '#991b1b',
+    border: darkMode ? '1px solid rgba(220, 38, 38, 0.4)' : '1px solid #fca5a5',
+    label: '✘ Invalid',
+  };
+  return {
+    background: darkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7',
+    color: darkMode ? '#fcd34d' : '#92400e',
+    border: darkMode ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #fcd34d',
+    label: '? Nesigur',
+  };
+}
 
 // ── Mici componente reutilizabile ────────────────────────────────────────────
-function Th({ children }) {
+function Th({ children, style }) {
   return (
-    <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '2px solid #e0e0e0', fontSize: 13, fontWeight: 600, color: '#555', whiteSpace: 'nowrap' }}>
+    <th
+      style={{
+        padding: '10px 12px', textAlign: 'left',
+        borderBottom: '2px solid rgba(168, 85, 247, 0.25)',
+        fontSize: 12, fontWeight: 600,
+        color: 'var(--th-color, #6b6375)', textTransform: 'uppercase', letterSpacing: 0.4,
+        whiteSpace: 'nowrap',
+        ...style,
+      }}
+    >
       {children}
     </th>
   );
 }
-function Td({ children }) {
+function Td({ children, style }) {
   return (
-    <td style={{ padding: '8px 12px', borderBottom: '1px solid #f0f0f0', fontSize: 13, verticalAlign: 'middle' }}>
+    <td
+      style={{
+        padding: '10px 12px',
+        borderBottom: '1px solid rgba(168, 85, 247, 0.12)',
+        fontSize: 13, verticalAlign: 'middle',
+        ...style,
+      }}
+    >
       {children}
     </td>
   );
@@ -66,17 +131,85 @@ function Empty({ label }) {
   return <p style={{ color: '#999', padding: '16px 0' }}>Niciun rezultat{label ? ` pentru "${label}"` : ''}.</p>;
 }
 
+function AIVerdictBadge({ verdict, text, darkMode }) {
+  const [open, setOpen] = useState(false);
+  const v = aiVerdictStyle(verdict, darkMode);
+  const hasText = !!text;
+  return (
+    <span
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      style={{ position: 'relative', display: 'inline-block' }}
+    >
+      <span
+        style={{
+          ...badgeBase,
+          background: v.background, color: v.color, border: v.border,
+          cursor: hasText ? 'help' : 'default',
+          padding: '4px 10px', fontWeight: 600,
+        }}
+      >
+        {v.label}
+      </span>
+      {open && hasText && (
+        <div
+          style={{
+            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
+            minWidth: 220, maxWidth: 320,
+            padding: '10px 12px', borderRadius: 8,
+            background: darkMode ? 'rgba(30, 15, 55, 0.97)' : '#ffffff',
+            color: darkMode ? '#e8e0ff' : '#222',
+            border: darkMode ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(0, 0, 0, 0.12)',
+            boxShadow: darkMode ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.15)',
+            fontSize: 12, lineHeight: 1.5, whiteSpace: 'normal',
+          }}
+        >
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, color: v.color, marginBottom: 4 }}>
+            Motivul AI
+          </div>
+          {text}
+        </div>
+      )}
+    </span>
+  );
+}
+
+const ROLE_BADGE = {
+  HEAD_ADMIN: { label: 'Head Admin', bg: '#7c3aed', color: 'white' },
+  ADMIN:      { label: 'Admin',      bg: '#f59e0b', color: '#3b2a00' },
+};
+
+const APPEAL_STATUS = {
+  PENDING:  { label: 'În așteptare', bg: '#f59e0b' },
+  OPEN:     { label: 'În analiză',   bg: '#3b82f6' },
+  RESOLVED: { label: 'Soluționat',   bg: '#10b981' },
+};
+
+function roleRowTint(role, darkMode) {
+  if (role === 'HEAD_ADMIN') return darkMode ? 'rgba(124, 58, 237, 0.15)' : '#f3e8ff';
+  if (role === 'ADMIN')      return darkMode ? 'rgba(245, 158, 11, 0.12)' : '#fff7e0';
+  return 'transparent';
+}
+
 // ── Pagina principală ────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, darkMode } = useAuth();
   const navigate = useNavigate();
 
   const [tab, setTab]               = useState('users');
   const [users, setUsers]           = useState([]);
   const [notes, setNotes]           = useState([]);
   const [reports, setReports]       = useState([]);
+  const [appeals, setAppeals]       = useState([]);
+  const [appealDetail, setAppealDetail] = useState(null); // selected appeal
+  const [appealResponse, setAppealResponse] = useState('');
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError]           = useState(null);
+
+  // Config sistem (doar head admin)
+  const [systemConfig, setSystemConfig] = useState({ bypassEmailVerification: 'false', adminDeviceVerificationDays: '', banAutoDeleteDays: '' });
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configMsg, setConfigMsg]       = useState(null);
 
   // Căutare per tab
   const [userQuery, setUserQuery]     = useState('');
@@ -88,7 +221,18 @@ export default function AdminPage() {
   const [editForm, setEditForm]     = useState({});
   const [saving, setSaving]         = useState(false);
 
-  const isAdmin = user?.role === 'ADMIN';
+  // Modal "Șterge notița" (programare + acțiune asupra autorului)
+  const [delModal, setDelModal] = useState(null);  // {report} sau null
+  const [delForm, setDelForm]   = useState({
+    days: 7, reason: '',
+    userAction: 'NONE', // NONE | WARN | SUSPEND | BAN
+    warningText: '',
+    suspendHours: 48,
+  });
+  const [delSaving, setDelSaving] = useState(false);
+
+  const isAdmin       = user?.role === 'ADMIN' || user?.role === 'HEAD_ADMIN';
+  const isHeadAdmin   = user?.role === 'HEAD_ADMIN';
   const pendingCount = reports.filter(r => r.status === 'PENDING').length;
 
   useEffect(() => {
@@ -101,11 +245,47 @@ export default function AdminPage() {
       api.get('/admin/users'),
       api.get('/admin/notes'),
       api.get('/admin/reports'),
+      api.get('/admin/appeals'),
     ])
-      .then(([u, n, r]) => { setUsers(u.data); setNotes(n.data); setReports(r.data); })
+      .then(([u, n, r, a]) => { setUsers(u.data); setNotes(n.data); setReports(r.data); setAppeals(a.data); })
       .catch(err => setError(err.message))
       .finally(() => setDataLoading(false));
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isHeadAdmin) return;
+    api.get('/admin/system-config')
+      .then(res => setSystemConfig({
+        bypassEmailVerification: res.data.bypassEmailVerification === 'true' ? 'true' : 'false',
+        adminDeviceVerificationDays: res.data.adminDeviceVerificationDays || '',
+        banAutoDeleteDays: res.data.banAutoDeleteDays || '',
+      }))
+      .catch(() => {});
+  }, [isHeadAdmin]);
+
+  async function restartServer() {
+    if (!confirm('Repornești serverul? Apelurile în curs vor fi întrerupte pentru câteva secunde.')) return;
+    try {
+      await api.post('/admin/server/restart');
+      setConfigMsg({ type: 'ok', text: 'Server restart inițiat. Așteaptă ~5 secunde apoi reîmprospătează pagina.' });
+    } catch (err) {
+      setConfigMsg({ type: 'err', text: err.response?.data?.error || 'Eroare la repornire' });
+    }
+  }
+
+  async function saveSystemConfig(e) {
+    e.preventDefault();
+    setConfigSaving(true);
+    setConfigMsg(null);
+    try {
+      await api.patch('/admin/system-config', systemConfig);
+      setConfigMsg({ type: 'ok', text: 'Salvat.' });
+    } catch (err) {
+      setConfigMsg({ type: 'err', text: err.response?.data?.error || 'Eroare la salvare' });
+    } finally {
+      setConfigSaving(false);
+    }
+  }
 
   if (loading || dataLoading) return <p>Se încarcă...</p>;
   if (error) return <p style={{ color: 'red' }}>Eroare: {error}</p>;
@@ -125,6 +305,13 @@ export default function AdminPage() {
     const s = q(noteQuery);
     return q(n.title).includes(s) || q(n.subject).includes(s) || q(n.author.username).includes(s);
   });
+
+  // Câte rapoarte are fiecare autor în total — folosit pentru insigna „repeat offender".
+  const authorReportCount = reports.reduce((acc, r) => {
+    const id = r.note?.author?.id;
+    if (id) acc[id] = (acc[id] || 0) + 1;
+    return acc;
+  }, {});
 
   const filteredReports = reports.filter(r => {
     if (!reportQuery) return true;
@@ -147,6 +334,145 @@ export default function AdminPage() {
       setUsers(prev => prev.filter(u => u.id !== id));
     } catch (err) {
       alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  // „Raport fals" — repune notița dacă era ascunsă și marchează raportul ca soluționat.
+  async function markReportFalse(r) {
+    try {
+      if (r.note.hidden) await api.post(`/admin/notes/${r.note.id}/unhide`);
+      const { data } = await api.patch(`/admin/reports/${r.id}`, { status: 'RESOLVED' });
+      setReports(prev => prev.map(x => x.id === r.id ? data : x));
+      setNotes(prev => prev.map(n => n.id === r.note.id ? { ...n, hidden: false } : n));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  // Deschide modalul de „Șterge notița" cu prereglare din raport.
+  function openDeleteNoteModal(r) {
+    setDelModal({ report: r });
+    setDelForm({
+      days: 7,
+      reason: `Raport: ${REASON_LABEL[r.reason] || r.reason}${r.details ? ` — ${r.details}` : ''}`,
+      userAction: 'NONE',
+      warningText: '',
+      suspendHours: 48,
+    });
+  }
+
+  async function submitDeleteNote() {
+    if (!delModal) return;
+    const r = delModal.report;
+    setDelSaving(true);
+    try {
+      // 1) Programează ștergerea notiței
+      await api.post(`/admin/notes/${r.note.id}/schedule-deletion`, {
+        days: Number(delForm.days),
+        reason: delForm.reason,
+      });
+
+      // 2) Acțiune asupra autorului
+      const authorId = r.note.author.id;
+      if (delForm.userAction === 'WARN') {
+        await api.post(`/admin/users/${authorId}/warn`, { message: delForm.warningText });
+      } else if (delForm.userAction === 'SUSPEND') {
+        await api.post(`/admin/users/${authorId}/suspend`, { hours: Number(delForm.suspendHours) });
+      } else if (delForm.userAction === 'BAN') {
+        await api.post(`/admin/users/${authorId}/ban`, {
+          reason: delForm.reason,
+          noteId: r.note.id,
+        });
+      }
+
+      // 3) Marchează raportul ca soluționat
+      await api.patch(`/admin/reports/${r.id}`, { status: 'RESOLVED' });
+
+      // 4) Reîncarcă tot
+      const [u, n, rp] = await Promise.all([
+        api.get('/admin/users'), api.get('/admin/notes'), api.get('/admin/reports'),
+      ]);
+      setUsers(u.data); setNotes(n.data); setReports(rp.data);
+
+      setDelModal(null);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la programarea ștergerii');
+    } finally {
+      setDelSaving(false);
+    }
+  }
+
+  async function banAuthor(userId, noteId, reason) {
+    if (!confirm('Banează acest utilizator? Contul va fi șters automat după termenul setat dacă nu depune apel.')) return;
+    try {
+      await api.post(`/admin/users/${userId}/ban`, { reason, noteId });
+      // Reîncărcăm toți userii ca să reflecte starea banned
+      const u = await api.get('/admin/users');
+      setUsers(u.data);
+      // Reîncărcăm și apelurile (gol probabil, dar consistent)
+      const a = await api.get('/admin/appeals');
+      setAppeals(a.data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la banare');
+    }
+  }
+
+  async function unbanAuthor(userId) {
+    try {
+      await api.post(`/admin/users/${userId}/unban`);
+      const u = await api.get('/admin/users');
+      setUsers(u.data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la deblocare');
+    }
+  }
+
+  async function openAppealTicket(id) {
+    try {
+      const { data } = await api.post(`/admin/appeals/${id}/open`);
+      setAppeals(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
+      // refetch detail
+      const detail = await api.get(`/admin/appeals/${id}`);
+      setAppealDetail(detail.data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la deschiderea tichetului');
+    }
+  }
+
+  async function viewAppeal(id) {
+    try {
+      const { data } = await api.get(`/admin/appeals/${id}`);
+      setAppealDetail(data);
+      setAppealResponse('');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare');
+    }
+  }
+
+  async function resolveAppealTicket(id, resolution) {
+    if (!confirm(resolution === 'OVERTURNED'
+      ? 'Ridici ban-ul utilizatorului?'
+      : 'Menții ban-ul? Contul va fi șters la termenul stabilit.')) return;
+    try {
+      await api.post(`/admin/appeals/${id}/resolve`, { resolution, response: appealResponse });
+      const [a, u] = await Promise.all([api.get('/admin/appeals'), api.get('/admin/users')]);
+      setAppeals(a.data);
+      setUsers(u.data);
+      setAppealDetail(null);
+      setAppealResponse('');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la soluționare');
+    }
+  }
+
+  async function setUserRole(targetUser, newRole) {
+    const verbs = { ADMIN: 'promovezi la admin', USER: 'retrogradezi la utilizator obișnuit' };
+    if (!confirm(`Sigur ${verbs[newRole]} pe ${targetUser.username}?`)) return;
+    try {
+      const { data } = await api.post(`/admin/users/${targetUser.id}/set-role`, { role: newRole });
+      setUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, role: data.role } : u));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la schimbarea rolului');
     }
   }
 
@@ -298,42 +624,80 @@ export default function AdminPage() {
             </span>
           )}
         </button>
+        <button onClick={() => setTab('appeals')} style={tab === 'appeals' ? activeTab : tabBtn}>
+          Tichete ({appeals.length})
+          {appeals.filter(a => a.status === 'PENDING').length > 0 && (
+            <span style={{ marginLeft: 6, background: '#f59e0b', color: '#3b2a00', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 600 }}>
+              {appeals.filter(a => a.status === 'PENDING').length} noi
+            </span>
+          )}
+        </button>
+        {isHeadAdmin && (
+          <button onClick={() => setTab('system')} style={tab === 'system' ? activeTab : tabBtn}>
+            Sistem
+          </button>
+        )}
       </div>
 
       {/* ── Utilizatori ── */}
       {tab === 'users' && (
         <>
-          <SearchBar value={userQuery} onChange={setUserQuery} placeholder="Caută după username, email sau prenume..." />
+          <SearchBar value={userQuery} onChange={setUserQuery} placeholder="Caută după username, email sau nume..." />
           {filteredUsers.length === 0 ? <Empty label={userQuery} /> : (
             <div style={{ overflowX: 'auto' }}>
               <table style={tableStyle}>
                 <thead>
                   <tr>
-                    <Th>Prenume</Th><Th>Username</Th><Th>Email</Th>
+                    <Th>Nume și prenume</Th><Th>Username</Th><Th>Rol</Th><Th>Email</Th>
                     <Th>Școală</Th><Th>Clasă</Th><Th>Rep.</Th>
                     <Th>Notițe</Th><Th>Comentarii</Th><Th>Cont creat</Th><Th>Acțiuni</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map(u => (
-                    <tr key={u.id} style={{ background: u.role === 'ADMIN' ? '#fffbea' : 'transparent' }}>
-                      <Td>{u.name || <Dash />}</Td>
-                      <Td><strong>{u.username}</strong></Td>
-                      <Td>{u.email}</Td>
-                      <Td>{u.school || <Dash />}</Td>
-                      <Td>{u.grade ? `a ${u.grade}-a` : <Dash />}</Td>
-                      <Td>{u.reputation}</Td>
-                      <Td>{u._count.notes}</Td>
-                      <Td>{u._count.comments}</Td>
-                      <Td>{new Date(u.createdAt).toLocaleDateString('ro-RO')}</Td>
-                      <Td>
-                        <button onClick={() => openEditUser(u)} style={btnEdit}>Editează</button>
-                        {u.role !== 'ADMIN' && (
-                          <button onClick={() => deleteUser(u.id)} style={btnDelete}>Șterge</button>
-                        )}
-                      </Td>
-                    </tr>
-                  ))}
+                  {filteredUsers.map(u => {
+                    const badge = ROLE_BADGE[u.role];
+                    const isSelf = u.id === user.id;
+                    return (
+                      <tr key={u.id} style={{ background: roleRowTint(u.role, darkMode) }}>
+                        <Td>{u.name || <Dash />}</Td>
+                        <Td><strong>{u.username}</strong></Td>
+                        <Td>
+                          {badge ? (
+                            <span style={{ ...badgeBase, background: badge.bg, color: badge.color }}>
+                              {badge.label}
+                            </span>
+                          ) : (
+                            <span style={{ color: darkMode ? '#aaa' : '#666', fontSize: 12 }}>Utilizator</span>
+                          )}
+                        </Td>
+                        <Td>{u.email}</Td>
+                        <Td>{u.school || <Dash />}</Td>
+                        <Td>{u.grade ? `a ${u.grade}-a` : <Dash />}</Td>
+                        <Td>{u.reputation}</Td>
+                        <Td>{u._count.notes}</Td>
+                        <Td>{u._count.comments}</Td>
+                        <Td>{new Date(u.createdAt).toLocaleDateString('ro-RO')}</Td>
+                        <Td>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            <button onClick={() => openEditUser(u)} style={btnEditStyle(darkMode)}>Editează</button>
+                            {isHeadAdmin && !isSelf && u.role === 'USER' && (
+                              <button onClick={() => setUserRole(u, 'ADMIN')} style={btnPromoteStyle}>
+                                ↑ Promovează
+                              </button>
+                            )}
+                            {isHeadAdmin && !isSelf && u.role === 'ADMIN' && (
+                              <button onClick={() => setUserRole(u, 'USER')} style={btnDemoteStyle}>
+                                ↓ Retrogradează
+                              </button>
+                            )}
+                            {u.role !== 'HEAD_ADMIN' && (u.role !== 'ADMIN' || isHeadAdmin) && !isSelf && (
+                              <button onClick={() => deleteUser(u.id)} style={btnDelete}>Șterge</button>
+                            )}
+                          </div>
+                        </Td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -350,45 +714,114 @@ export default function AdminPage() {
               <table style={tableStyle}>
                 <thead>
                   <tr>
-                    <Th>Titlu</Th><Th>Autor</Th><Th>Materie</Th>
-                    <Th>Clasă</Th><Th>Tip</Th><Th>Rating</Th>
-                    <Th>Publicat</Th><Th>Acțiuni</Th>
+                    <Th>Notiță</Th>
+                    <Th>Autor</Th>
+                    <Th>Materie · Clasă</Th>
+                    <Th>Tip</Th>
+                    <Th>Rating</Th>
+                    <Th>Publicat</Th>
+                    <Th>Acțiuni</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredNotes.map(n => (
-                    <tr key={n.id}>
-                      <Td>
-                        <a href={`/notes/${n.id}`} target="_blank" rel="noreferrer" style={{ color: n.hidden ? '#999' : '#0066cc', textDecoration: 'none' }}>
-                          {n.title}
-                        </a>
-                        {n.hidden && (
-                          <span style={{ marginLeft: 6, fontSize: 10, background: '#b71c1c', color: 'white', borderRadius: 4, padding: '1px 5px' }}>
-                            ascunsă
+                  {filteredNotes.map(n => {
+                    const typeBadge = TYPE_BADGE[n.type] || { label: n.type, bg: '#6b7280', color: 'white' };
+                    const subjColor = subjectColor(n.subject);
+                    return (
+                      <tr key={n.id} style={{ background: n.hidden ? (darkMode ? 'rgba(220, 38, 38, 0.08)' : '#fef2f2') : 'transparent' }}>
+                        <Td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 4, height: 28, background: subjColor, borderRadius: 2, flexShrink: 0 }} />
+                            <div>
+                              <a
+                                href={`/notes/${n.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  color: n.hidden ? (darkMode ? '#888' : '#999') : (darkMode ? '#c4b5fd' : '#5b21b6'),
+                                  textDecoration: 'none',
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {n.title}
+                              </a>
+                              {n.chapter && (
+                                <div style={{ fontSize: 11, color: darkMode ? '#9ca3af' : '#6b7280', marginTop: 2 }}>
+                                  {n.chapter}
+                                </div>
+                              )}
+                              {n.hidden && !n.deletionScheduledAt && (
+                                <span style={{ display: 'inline-block', marginTop: 4, fontSize: 10, background: '#dc2626', color: 'white', borderRadius: 4, padding: '2px 6px', fontWeight: 600 }}>
+                                  🚫 ASCUNSĂ
+                                </span>
+                              )}
+                              {n.deletionScheduledAt && (
+                                <div style={{ marginTop: 4 }}>
+                                  <span style={{ display: 'inline-block', fontSize: 10, background: '#b45309', color: 'white', borderRadius: 4, padding: '2px 6px', fontWeight: 600 }}>
+                                    ⏳ ȘTERGERE PROGRAMATĂ
+                                  </span>
+                                  <div style={{ fontSize: 10, color: darkMode ? '#fcd34d' : '#92400e', marginTop: 2 }}>
+                                    pe {new Date(n.deletionScheduledAt).toLocaleDateString('ro-RO')}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </Td>
+                        <Td>
+                          <div style={{ fontWeight: 500 }}>{n.author.name || n.author.username}</div>
+                          {n.author.name && (
+                            <div style={{ fontSize: 11, color: darkMode ? '#9ca3af' : '#6b7280' }}>
+                              @{n.author.username}
+                            </div>
+                          )}
+                        </Td>
+                        <Td>
+                          <span style={{ ...badgeBase, background: subjColor, color: 'white', fontWeight: 600 }}>
+                            {n.subject}
                           </span>
-                        )}
-                      </Td>
-                      <Td>{n.author.name || n.author.username}</Td>
-                      <Td>{n.subject}</Td>
-                      <Td>a {n.gradeLevel}-a</Td>
-                      <Td>{n.type}</Td>
-                      <Td>
-                        {n.ratingCount > 0
-                          ? `★ ${n.avgRating.toFixed(1)} (${n.ratingCount})`
-                          : <Dash />}
-                      </Td>
-                      <Td>{new Date(n.createdAt).toLocaleDateString('ro-RO')}</Td>
-                      <Td>
-                        <button onClick={() => openEditNote(n)} style={btnEdit}>Editează</button>
-                        {n.hidden && (
-                          <button onClick={() => unhideNote(n.id)} style={{ ...btnEdit, color: '#155724', border: '1px solid #4caf50' }}>
-                            Repune
-                          </button>
-                        )}
-                        <button onClick={() => deleteNote(n.id)} style={btnDelete}>Șterge</button>
-                      </Td>
-                    </tr>
-                  ))}
+                          <div style={{ fontSize: 11, color: darkMode ? '#9ca3af' : '#6b7280', marginTop: 4 }}>
+                            clasa a {n.gradeLevel}-a
+                          </div>
+                        </Td>
+                        <Td>
+                          <span style={{ ...badgeBase, background: typeBadge.bg, color: typeBadge.color, fontWeight: 600 }}>
+                            {typeBadge.label}
+                          </span>
+                        </Td>
+                        <Td>
+                          {n.ratingCount > 0 ? (
+                            <div>
+                              <span style={{ color: '#f59e0b', fontWeight: 600 }}>★ {n.avgRating.toFixed(1)}</span>
+                              <span style={{ fontSize: 11, color: darkMode ? '#9ca3af' : '#6b7280', marginLeft: 4 }}>
+                                ({n.ratingCount} {n.ratingCount === 1 ? 'vot' : 'voturi'})
+                              </span>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11, color: darkMode ? '#6b7280' : '#9ca3af' }}>nevotată</span>
+                          )}
+                          <div style={{ fontSize: 11, color: darkMode ? '#9ca3af' : '#6b7280', marginTop: 2 }}>
+                            👁 {n.viewCount || 0}
+                          </div>
+                        </Td>
+                        <Td>
+                          <div style={{ fontSize: 13 }}>{new Date(n.createdAt).toLocaleDateString('ro-RO')}</div>
+                          <div style={{ fontSize: 11, color: darkMode ? '#9ca3af' : '#6b7280' }}>
+                            {new Date(n.createdAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </Td>
+                        <Td>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            <button onClick={() => openEditNote(n)} style={btnEditStyle(darkMode)}>Editează</button>
+                            {n.hidden && (
+                              <button onClick={() => unhideNote(n.id)} style={btnRestoreStyle}>↶ Repune</button>
+                            )}
+                            <button onClick={() => deleteNote(n.id)} style={btnDelete}>Șterge</button>
+                          </div>
+                        </Td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -412,7 +845,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredReports.map(r => {
-                    const st = STATUS_STYLE[r.status] || STATUS_STYLE.PENDING;
+                    const st = reportStatusStyle(r.status, darkMode);
                     return (
                       <tr key={r.id}>
                         <Td>
@@ -432,6 +865,18 @@ export default function AdminPage() {
                               suspendat
                             </span>
                           )}
+                          {authorReportCount[r.note.author.id] > 1 && (
+                            <div
+                              title={`Acest autor are ${authorReportCount[r.note.author.id]} rapoarte total în istoric`}
+                              style={{
+                                display: 'inline-block', marginLeft: 6, fontSize: 10,
+                                background: '#b91c1c', color: 'white', borderRadius: 4,
+                                padding: '1px 6px', fontWeight: 700, cursor: 'help',
+                              }}
+                            >
+                              ⚠ {authorReportCount[r.note.author.id]}× raportat
+                            </div>
+                          )}
                         </Td>
                         <Td>{r.reporter.name || r.reporter.username}</Td>
                         <Td>{REASON_LABEL[r.reason] || r.reason}</Td>
@@ -440,65 +885,41 @@ export default function AdminPage() {
                         </Td>
                         <Td>
                           {r.aiVerdict ? (
-                            <div title={r.aiVerdictText || ''} style={{ cursor: r.aiVerdictText ? 'help' : 'default' }}>
-                              <span style={{ ...badgeBase, ...AI_VERDICT_STYLE[r.aiVerdict] }}>
-                                {AI_VERDICT_STYLE[r.aiVerdict]?.label ?? r.aiVerdict}
-                              </span>
-                              {r.aiVerdictText && (
-                                <div style={{ fontSize: 11, color: '#666', marginTop: 3, maxWidth: 160, wordBreak: 'break-word' }}>
-                                  {r.aiVerdictText}
-                                </div>
-                              )}
-                            </div>
+                            <AIVerdictBadge verdict={r.aiVerdict} text={r.aiVerdictText} darkMode={darkMode} />
                           ) : (
                             <Dash />
                           )}
                         </Td>
                         <Td>
-                          <span style={{ ...badgeBase, background: st.background, color: st.color }}>
+                          <span style={{ ...badgeBase, background: st.background, color: st.color, border: st.border, fontWeight: 600 }}>
                             {st.label}
                           </span>
                         </Td>
                         <Td>{new Date(r.createdAt).toLocaleDateString('ro-RO')}</Td>
                         <Td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 140 }}>
-                            {/* Status */}
-                            {r.status === 'PENDING' && (
-                              <button onClick={() => setReportStatus(r.id, 'REVIEWED')} style={{ ...btnEdit, color: '#004085' }}>
-                                Marchează verificat
-                              </button>
-                            )}
-                            {r.status === 'REVIEWED' && (
-                              <button onClick={() => setReportStatus(r.id, 'RESOLVED')} style={{ ...btnEdit, color: '#155724' }}>
-                                Marchează rezolvat
-                              </button>
-                            )}
-                            <hr style={{ margin: '2px 0', border: 'none', borderTop: '1px solid #eee' }} />
-                            {/* Notiță */}
-                            {r.note.hidden && (
-                              <button onClick={() => unhideNote(r.note.id)} style={{ ...btnEdit, color: '#155724', border: '1px solid #4caf50' }}>
-                                Repune notița
-                              </button>
-                            )}
-                            <button onClick={() => deleteNoteFromReport(r.note.id)} style={{ ...btnDelete, background: '#e53935' }}>
-                              Șterge notița
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 160 }}>
+                            <button
+                              onClick={() => markReportFalse(r)}
+                              style={btnFalseReport}
+                              disabled={r.status === 'RESOLVED'}
+                              title="Raportul e nefondat — repune notița dacă era ascunsă și marchează rezolvat"
+                            >
+                              ✓ Raport fals
                             </button>
-                            {/* Autor */}
-                            {r.note.author.suspendedUntil && new Date(r.note.author.suspendedUntil) > new Date() ? (
-                              <button onClick={() => unsuspendAuthor(r.note.author.id)} style={{ ...btnEdit, color: '#155724', border: '1px solid #4caf50' }}>
-                                Ridică suspendarea
-                              </button>
-                            ) : (
-                              <button onClick={() => suspendAuthor(r.note.author.id)} style={{ ...btnDelete, background: '#f57c00' }}>
-                                Suspendă autor 48h
-                              </button>
-                            )}
-                            <button onClick={() => deleteAuthorFromReport(r.note.author.id)} style={{ ...btnDelete, background: '#6d4c41' }}>
-                              Șterge utilizator
+                            <button
+                              onClick={() => openDeleteNoteModal(r)}
+                              style={btnDeleteNote}
+                              disabled={r.status === 'RESOLVED'}
+                              title="Programează ștergerea notiței și alege acțiunea asupra autorului"
+                            >
+                              🗑 Șterge notița
                             </button>
-                            <hr style={{ margin: '2px 0', border: 'none', borderTop: '1px solid #eee' }} />
-                            <button onClick={() => deleteReport(r.id)} style={btnEdit}>
-                              Șterge raport
+                            <button
+                              onClick={() => deleteReport(r.id)}
+                              style={btnEditStyle(darkMode)}
+                              title="Doar șterge raportul fără să schimbi nimic"
+                            >
+                              Șterge raportul
                             </button>
                           </div>
                         </Td>
@@ -512,17 +933,405 @@ export default function AdminPage() {
         </>
       )}
 
+      {/* ── Tichete (apeluri ban) ── */}
+      {tab === 'appeals' && (
+        <>
+          {appeals.length === 0 ? (
+            <Empty />
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Utilizator</Th><Th>Status</Th><Th>Mesaj (extras)</Th>
+                    <Th>Depus</Th><Th>Deschis de</Th><Th>Acțiuni</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appeals.map(a => {
+                    const statusInfo = APPEAL_STATUS[a.status] || { label: a.status, bg: '#6b7280' };
+                    return (
+                      <tr key={a.id}>
+                        <Td>
+                          <strong>{a.user.username}</strong>
+                          {a.user.banned && (
+                            <span style={{ display: 'inline-block', marginLeft: 6, fontSize: 10, background: '#dc2626', color: 'white', borderRadius: 4, padding: '1px 6px', fontWeight: 600 }}>
+                              BANAT
+                            </span>
+                          )}
+                          <div style={{ fontSize: 11, color: darkMode ? '#9ca3af' : '#6b7280' }}>{a.user.email}</div>
+                        </Td>
+                        <Td>
+                          <span style={{ ...badgeBase, background: statusInfo.bg, color: 'white' }}>
+                            {statusInfo.label}
+                          </span>
+                          {a.resolution && (
+                            <div style={{ fontSize: 11, marginTop: 4, color: a.resolution === 'OVERTURNED' ? '#10b981' : '#dc2626' }}>
+                              {a.resolution === 'OVERTURNED' ? 'Ban ridicat' : 'Ban menținut'}
+                            </div>
+                          )}
+                        </Td>
+                        <Td style={{ maxWidth: 320 }}>
+                          <div style={{ fontSize: 13, color: darkMode ? '#d4d4d8' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {a.message.length > 80 ? a.message.slice(0, 80) + '…' : a.message}
+                          </div>
+                        </Td>
+                        <Td>{new Date(a.createdAt).toLocaleDateString('ro-RO')}</Td>
+                        <Td>{a.openedBy?.username || <Dash />}</Td>
+                        <Td>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button onClick={() => viewAppeal(a.id)} style={btnEditStyle(darkMode)}>
+                              Vezi
+                            </button>
+                            {a.status === 'PENDING' && (
+                              <button onClick={() => openAppealTicket(a.id)} style={{ ...btnEditStyle(darkMode), background: '#7c3aed', color: 'white', border: 'none' }}>
+                                Deschide
+                              </button>
+                            )}
+                          </div>
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Modal detaliu tichet */}
+          {appealDetail && (
+            <div style={modalOverlay}>
+              <div style={{ ...modalBoxStyle(darkMode), maxWidth: 720 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                  <h3 style={{ marginTop: 0 }}>
+                    Tichet — {appealDetail.user.username}
+                  </h3>
+                  <button onClick={() => { setAppealDetail(null); setAppealResponse(''); }} style={btnSecondary}>✕</button>
+                </div>
+
+                <p style={{ fontSize: 13, color: darkMode ? '#a89bc4' : '#6b7280' }}>
+                  Banat la: {appealDetail.user.bannedAt ? new Date(appealDetail.user.bannedAt).toLocaleString('ro-RO') : '—'}
+                </p>
+
+                {appealDetail.user.banReason && (
+                  <div style={{ marginBottom: 12 }}>
+                    <strong>Motiv ban:</strong>
+                    <p style={{ margin: '4px 0', padding: 8, background: darkMode ? 'rgba(0,0,0,0.3)' : '#f9fafb', borderRadius: 4, whiteSpace: 'pre-wrap' }}>
+                      {appealDetail.user.banReason}
+                    </p>
+                  </div>
+                )}
+
+                {appealDetail.banNote && (
+                  <div style={{ marginBottom: 12 }}>
+                    <strong>Notița care a dus la ban:</strong>
+                    <div style={{ padding: 10, background: darkMode ? 'rgba(0,0,0,0.3)' : '#f9fafb', borderRadius: 4, marginTop: 4 }}>
+                      <a href={`/notes/${appealDetail.banNote.id}`} target="_blank" rel="noreferrer"
+                         style={{ color: darkMode ? '#c4b5fd' : '#5b21b6', fontWeight: 600 }}>
+                        {appealDetail.banNote.title}
+                      </a>
+                      <div style={{ fontSize: 12, color: darkMode ? '#9ca3af' : '#6b7280' }}>
+                        {appealDetail.banNote.subject} • clasa a {appealDetail.banNote.gradeLevel}-a
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {appealDetail.banComment && (
+                  <div style={{ marginBottom: 12 }}>
+                    <strong>Comentariul care a dus la ban:</strong>
+                    <div style={{ padding: 10, background: darkMode ? 'rgba(0,0,0,0.3)' : '#f9fafb', borderRadius: 4, marginTop: 4 }}>
+                      <p style={{ margin: 0, fontStyle: 'italic' }}>„{appealDetail.banComment.content}"</p>
+                      {appealDetail.banComment.note && (
+                        <div style={{ fontSize: 12, color: darkMode ? '#9ca3af' : '#6b7280', marginTop: 4 }}>
+                          pe notița <a href={`/notes/${appealDetail.banComment.note.id}`} target="_blank" rel="noreferrer">{appealDetail.banComment.note.title}</a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ marginBottom: 12 }}>
+                  <strong>Mesaj apel:</strong>
+                  <div style={{ padding: 12, background: darkMode ? 'rgba(168, 85, 247, 0.08)' : 'rgba(168, 85, 247, 0.05)', borderRadius: 6, marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                    {appealDetail.message}
+                  </div>
+                </div>
+
+                {appealDetail.status !== 'RESOLVED' ? (
+                  <>
+                    <label style={labelStyle}>
+                      Răspuns către utilizator (opțional, vizibil în pagina /banned)
+                      <textarea
+                        value={appealResponse}
+                        onChange={e => setAppealResponse(e.target.value)}
+                        rows={3}
+                        style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }}
+                        placeholder="Ex: Comentariul tău e clar abuz. Ban-ul rămâne."
+                      />
+                    </label>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+                      {appealDetail.status === 'PENDING' && (
+                        <button onClick={() => openAppealTicket(appealDetail.id)} style={{ ...btnEditStyle(darkMode), background: '#7c3aed', color: 'white', border: 'none' }}>
+                          Deschide tichet
+                        </button>
+                      )}
+                      <button onClick={() => resolveAppealTicket(appealDetail.id, 'OVERTURNED')}
+                              style={{ padding: '8px 16px', background: '#10b981', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                        ✓ Ridică ban-ul
+                      </button>
+                      <button onClick={() => resolveAppealTicket(appealDetail.id, 'UPHELD')}
+                              style={{ padding: '8px 16px', background: '#dc2626', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' }}>
+                        ✗ Menține ban-ul
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ padding: 12, background: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', borderRadius: 6 }}>
+                    <p style={{ margin: '0 0 6px' }}>
+                      <strong>Soluționat de:</strong> {appealDetail.resolvedBy?.username || '—'}
+                      {' '}({appealDetail.resolution === 'OVERTURNED' ? 'ban ridicat' : 'ban menținut'})
+                    </p>
+                    {appealDetail.adminResponse && (
+                      <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{appealDetail.adminResponse}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ── Sistem (head admin) ── */}
+      {tab === 'system' && isHeadAdmin && (
+        <div style={{ maxWidth: 560 }}>
+          <h2 style={{ marginTop: 0 }}>Configurare sistem</h2>
+          <form onSubmit={saveSystemConfig}>
+            <label style={{ ...labelStyle, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={systemConfig.bypassEmailVerification === 'true'}
+                onChange={e => setSystemConfig(c => ({
+                  ...c,
+                  bypassEmailVerification: e.target.checked ? 'true' : 'false',
+                }))}
+                style={{ marginTop: 4, accentColor: '#a855f7', cursor: 'pointer' }}
+              />
+              <span>
+                <strong>Sari peste verificarea emailului la înregistrare</strong>
+                <small style={{ display: 'block', color: '#666', marginTop: 4, fontWeight: 400 }}>
+                  Bifat: conturile noi sunt active imediat, fără confirmare prin email.
+                  Debifat (implicit): utilizatorul trebuie să confirme emailul înainte
+                  de a se putea autentifica. Adresa "From" se ia din <code>SMTP_USER</code> (.env).
+                </small>
+              </span>
+            </label>
+
+            {systemConfig.bypassEmailVerification === 'true' && (
+              <div style={{
+                marginTop: -4, marginBottom: 12, padding: '6px 10px', borderRadius: 6,
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                color: '#92400e', fontSize: 13,
+              }}>
+                ⚠️ Bypass activ: oricine poate crea cont cu orice email, fără confirmare.
+              </div>
+            )}
+
+            <label style={labelStyle}>
+              Zile înainte ca adminii să reconfirme un dispozitiv prin email
+              <input
+                type="number"
+                min={-1}
+                max={365}
+                value={systemConfig.adminDeviceVerificationDays}
+                onChange={e => setSystemConfig(c => ({ ...c, adminDeviceVerificationDays: e.target.value }))}
+                placeholder="7"
+                style={inputStyle}
+              />
+              <small style={{ display: 'block', color: '#666', marginTop: 4 }}>
+                Dacă un admin nu se loghează pe acest dispozitiv în intervalul setat,
+                următoarea autentificare îi va cere confirmare pe email. Implicit: 7 zile.
+                {' '}<strong>-1</strong> = dezactivat complet. <strong>0</strong> = verificare la fiecare login.
+              </small>
+              {parseInt(systemConfig.adminDeviceVerificationDays, 10) === -1 && (
+                <div style={{
+                  marginTop: 8, padding: '6px 10px', borderRadius: 6,
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)',
+                  color: darkMode ? '#fbbf24' : '#92400e', fontSize: 12,
+                }}>
+                  ⚠ Verificarea de dispozitiv este <strong>dezactivată</strong>. Adminii se pot loga
+                  de pe orice dispozitiv fără confirmare prin email.
+                </div>
+              )}
+              {parseInt(systemConfig.adminDeviceVerificationDays, 10) === 0 && (
+                <div style={{
+                  marginTop: 8, padding: '6px 10px', borderRadius: 6,
+                  background: 'rgba(124, 58, 237, 0.15)',
+                  border: '1px solid rgba(124, 58, 237, 0.4)',
+                  color: darkMode ? '#c4b5fd' : '#5b21b6', fontSize: 12,
+                }}>
+                  🔒 Mod strict: adminii vor primi email de confirmare <strong>la fiecare login</strong>,
+                  indiferent dacă dispozitivul e cunoscut.
+                </div>
+              )}
+            </label>
+
+            <label style={labelStyle}>
+              Zile până când contul banat este șters automat
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={systemConfig.banAutoDeleteDays}
+                onChange={e => setSystemConfig(c => ({ ...c, banAutoDeleteDays: e.target.value }))}
+                placeholder="14"
+                style={inputStyle}
+              />
+              <small style={{ display: 'block', color: '#666', marginTop: 4 }}>
+                După acest interval, contul banat este șters automat de sistem.
+                Dacă utilizatorul depune un tichet de apel, ștergerea e suspendată
+                până la soluționarea tichetului. Implicit: 14 zile.
+              </small>
+            </label>
+
+            {configMsg && (
+              <p style={{ color: configMsg.type === 'ok' ? '#155724' : '#b91c1c' }}>
+                {configMsg.text}
+              </p>
+            )}
+            <button type="submit" disabled={configSaving} style={btnPrimary}>
+              {configSaving ? 'Se salvează...' : 'Salvează'}
+            </button>
+          </form>
+
+          <hr style={{ border: 'none', borderTop: darkMode ? '1px solid rgba(168,85,247,0.2)' : '1px solid #e5e7eb', margin: '24px 0' }} />
+
+          <h2 style={{ fontSize: 18, margin: '0 0 8px' }}>Întreținere</h2>
+          <p style={{ fontSize: 13, color: darkMode ? '#a89bc4' : '#6b7280', margin: '0 0 12px' }}>
+            Repornește procesul backend (echivalent cu „rs" în terminalul nodemon).
+            Toate apelurile în curs vor fi întrerupte ~5 secunde până când supervizorul
+            ridică procesul din nou.
+          </p>
+          <button onClick={restartServer} style={btnRestartServer}>
+            ⟳ Repornește serverul
+          </button>
+        </div>
+      )}
+
+      {/* ── Modal „Șterge notița" (programare + acțiune autor) ── */}
+      {delModal && (
+        <div style={modalOverlay}>
+          <div style={{ ...modalBoxStyle(darkMode), maxWidth: 540 }}>
+            <h3 style={{ marginTop: 0 }}>Șterge notița</h3>
+            <p style={{ fontSize: 13, color: darkMode ? '#a89bc4' : '#6b7280', marginTop: 0 }}>
+              „{delModal.report.note.title}" — autor: <strong>{delModal.report.note.author.username}</strong>
+            </p>
+
+            <label style={labelStyle}>
+              Termen până la ștergere (zile)
+              <input
+                type="number" min={1} max={365}
+                value={delForm.days}
+                onChange={e => setDelForm(f => ({ ...f, days: e.target.value }))}
+                style={inputStyle}
+              />
+              <small style={{ color: darkMode ? '#9ca3af' : '#6b7280' }}>
+                Notița e ascunsă imediat; se șterge efectiv după acest termen, doar
+                dacă autorul nu depune un tichet de apel.
+              </small>
+            </label>
+
+            <label style={labelStyle}>
+              Motiv (vizibil pentru autor)
+              <textarea
+                rows={2}
+                value={delForm.reason}
+                onChange={e => setDelForm(f => ({ ...f, reason: e.target.value }))}
+                style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }}
+                placeholder="Ex: Conținut nepotrivit pentru clasa a 9-a"
+              />
+            </label>
+
+            <hr style={{ border: 'none', borderTop: darkMode ? '1px solid rgba(168,85,247,0.2)' : '1px solid #e5e7eb', margin: '16px 0' }} />
+
+            <label style={labelStyle}>
+              Acțiune asupra autorului
+              <select
+                value={delForm.userAction}
+                onChange={e => setDelForm(f => ({ ...f, userAction: e.target.value }))}
+                style={inputStyle}
+              >
+                <option value="NONE">Nu se întâmplă nimic</option>
+                <option value="WARN">Avertizare utilizator</option>
+                <option value="SUSPEND">Suspendă utilizator (ore)</option>
+                <option value="BAN">🚫 Banează utilizator</option>
+              </select>
+            </label>
+
+            {delForm.userAction === 'WARN' && (
+              <label style={labelStyle}>
+                Text avertisment (afișat utilizatorului)
+                <textarea
+                  rows={3}
+                  required
+                  value={delForm.warningText}
+                  onChange={e => setDelForm(f => ({ ...f, warningText: e.target.value }))}
+                  style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }}
+                  placeholder="Ex: Conținutul tău nu respectă regulile. Te rugăm să citești ghidul."
+                />
+              </label>
+            )}
+
+            {delForm.userAction === 'SUSPEND' && (
+              <label style={labelStyle}>
+                Durată suspendare (ore)
+                <input
+                  type="number" min={1} max={8760}
+                  value={delForm.suspendHours}
+                  onChange={e => setDelForm(f => ({ ...f, suspendHours: e.target.value }))}
+                  style={inputStyle}
+                />
+              </label>
+            )}
+
+            {delForm.userAction === 'BAN' && (
+              <div style={{
+                padding: 10, borderRadius: 6, fontSize: 13,
+                background: darkMode ? 'rgba(220, 38, 38, 0.1)' : '#fee2e2',
+                color: darkMode ? '#fca5a5' : '#991b1b',
+                border: '1px solid rgba(220, 38, 38, 0.3)',
+              }}>
+                Contul va fi banat. Va fi șters automat după termenul setat de head admin
+                dacă utilizatorul nu depune un apel.
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setDelModal(null)} disabled={delSaving} style={btnSecondary}>
+                Anulează
+              </button>
+              <button onClick={submitDeleteNote} disabled={delSaving || !delForm.reason || (delForm.userAction === 'WARN' && !delForm.warningText)} style={btnDeleteNote}>
+                {delSaving ? 'Se trimite...' : 'Confirmă'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Modal editare ── */}
       {editTarget && (
         <div style={modalOverlay}>
-          <div style={modalBox}>
+          <div style={modalBoxStyle(darkMode)}>
             <h3 style={{ marginTop: 0 }}>
               {editTarget.type === 'user' ? 'Editează utilizator' : 'Editează notiță'}
             </h3>
             <form onSubmit={handleSave}>
               {editTarget.type === 'user' ? (
                 <>
-                  <Field label="Prenume"  value={editForm.name}     onChange={field('name')} />
+                  <Field label="Nume și prenume"  value={editForm.name}     onChange={field('name')} />
                   <Field label="Username" value={editForm.username} onChange={field('username')} required />
                   <Field label="Email"    value={editForm.email}    onChange={field('email')} type="email" required />
                   <Field label="Școală"   value={editForm.school}   onChange={field('school')} />
@@ -574,14 +1383,32 @@ function Dash() {
 }
 
 const tableStyle   = { width: '100%', borderCollapse: 'collapse' };
-const tabBtn       = { padding: '8px 18px', border: '1px solid #ccc', borderRadius: 4, background: 'white', cursor: 'pointer', fontSize: 14 };
-const activeTab    = { ...tabBtn, background: '#0066cc', color: 'white', border: '1px solid #0066cc' };
-const btnEdit      = { padding: '3px 8px', marginRight: 6, border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: 'white' };
+const tabBtn       = { padding: '8px 18px', border: '1px solid rgba(168, 85, 247, 0.4)', borderRadius: 4, background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: 14 };
+const activeTab    = { ...tabBtn, background: '#7c3aed', color: 'white', border: '1px solid #7c3aed' };
+const btnEditStyle = (darkMode) => ({
+  padding: '3px 8px', borderRadius: 4, cursor: 'pointer', fontSize: 12,
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid #c4b5fd',
+  background: darkMode ? 'rgba(168, 85, 247, 0.15)' : '#f5f3ff',
+  color: darkMode ? '#e8ddff' : '#5b21b6',
+});
+const btnEdit      = { padding: '3px 8px', marginRight: 6, border: '1px solid #c4b5fd', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: '#f5f3ff', color: '#5b21b6' };
 const btnDelete    = { padding: '3px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: '#dc3545', color: 'white' };
+const btnPromoteStyle = { padding: '3px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: '#f59e0b', color: '#3b2a00', fontWeight: 600 };
+const btnDemoteStyle  = { padding: '3px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: '#64748b', color: 'white' };
+const btnRestoreStyle = { padding: '3px 8px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: '#10b981', color: 'white', fontWeight: 500 };
+const btnFalseReport  = { padding: '6px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: '#10b981', color: 'white', fontWeight: 600 };
+const btnDeleteNote   = { padding: '6px 10px', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12, background: '#dc2626', color: 'white', fontWeight: 600 };
+const btnRestartServer = { padding: '10px 18px', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, background: '#dc2626', color: 'white', fontWeight: 600 };
 const badgeBase    = { display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 500 };
 const modalOverlay = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const modalBox     = { background: 'white', padding: 24, borderRadius: 8, maxWidth: 460, width: '100%', margin: '0 16px', maxHeight: '90vh', overflowY: 'auto' };
+const modalBoxStyle = (darkMode) => ({
+  background: darkMode ? '#1f1530' : 'white',
+  color: darkMode ? '#e8e0ff' : '#222',
+  padding: 24, borderRadius: 8, maxWidth: 460, width: '100%',
+  margin: '0 16px', maxHeight: '90vh', overflowY: 'auto',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.35)' : '1px solid #e5e7eb',
+});
 const labelStyle   = { display: 'block', marginBottom: 12, fontWeight: 500 };
 const inputStyle   = { display: 'block', width: '100%', padding: 8, marginTop: 4, border: '1px solid #ccc', borderRadius: 4, fontSize: 14, boxSizing: 'border-box' };
-const btnPrimary   = { padding: '8px 16px', background: '#0066cc', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' };
-const btnSecondary = { padding: '8px 16px', background: 'white', color: '#333', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer' };
+const btnPrimary   = { padding: '8px 16px', background: '#7c3aed', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer' };
+const btnSecondary = { padding: '8px 16px', background: 'transparent', color: 'inherit', border: '1px solid #ccc', borderRadius: 4, cursor: 'pointer' };

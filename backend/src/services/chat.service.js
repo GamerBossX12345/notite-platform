@@ -3,8 +3,9 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'llama-3.3-70b-versatile';
 
-export async function chatAboutNote({ noteTitle, noteContent, noteSubject, history, userMessage }) {
+export async function chatAboutNote({ noteTitle, noteContent, noteSubject, fileText, history, userMessage }) {
   const contentSnippet = (noteContent || '').substring(0, 3000);
+  const fileSnippet = (fileText || '').substring(0, 4000);
 
   const systemPrompt = `Ești un profesor de ${noteSubject || 'materie'} care ajută elevii să înțeleagă o notiță.
 Răspunde în română, clar și pe înțelesul unui elev. Fii concis dar complet.
@@ -12,7 +13,10 @@ Dacă întrebarea nu are legătură cu notița, îndreaptă conversația înapoi
 
 NOTIȚĂ DE REFERINȚĂ:
 Titlu: ${noteTitle}
-Conținut: ${contentSnippet || '(conținut indisponibil)'}`;
+Conținut: ${contentSnippet || '(conținut indisponibil)'}${fileSnippet ? `
+
+CONȚINUTUL FIȘIERULUI ATAȘAT (extras din document/imagine):
+${fileSnippet}` : ''}`;
 
   // Limita history la ultimele 10 mesaje pentru a nu depăși context window
   const recentHistory = (history || []).slice(-10);

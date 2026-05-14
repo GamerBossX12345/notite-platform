@@ -14,6 +14,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mainMenuOpen, setMainMenuOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -47,7 +49,7 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
-  async function register(email, username, password, name, school, grade) {
+  async function register(email, username, password, name, school, grade, defaultSubject) {
     const { data } = await api.post('/auth/register', {
       email,
       username,
@@ -55,15 +57,35 @@ export function AuthProvider({ children }) {
       name: name || undefined,
       school: school || undefined,
       grade: grade || undefined,
+      defaultSubject: defaultSubject || undefined,
     });
+    if (data.requiresVerification) {
+      // Nu suntem logați — userul trebuie să verifice emailul mai întâi
+      return { requiresVerification: true, user: data.user };
+    }
     localStorage.setItem('token', data.token);
     setUser(data.user);
-    return data.user;
+    return { user: data.user };
   }
 
   function logout() {
     localStorage.removeItem('token');
     setUser(null);
+  }
+
+  async function refreshMe() {
+    try {
+      const res = await api.get('/auth/me');
+      setUser(res.data);
+      return res.data;
+    } catch {
+      return null;
+    }
+  }
+
+  async function dismissWarning() {
+    await api.delete('/auth/warning');
+    setUser(prev => prev ? { ...prev, warning: null } : prev);
   }
 
   async function updateDarkMode(isDark) {
@@ -80,7 +102,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, darkMode, updateDarkMode }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshMe, darkMode, updateDarkMode, dismissWarning, sidebarOpen, setSidebarOpen, mainMenuOpen, setMainMenuOpen }}>
       {children}
     </AuthContext.Provider>
   );

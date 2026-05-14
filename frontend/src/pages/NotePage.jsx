@@ -6,6 +6,9 @@ import { RatingStars, RatingStarsDisplay } from '../components/RatingStars.jsx';
 import { CommentsSection } from '../components/CommentsSection.jsx';
 import { QuizModal } from '../components/QuizModal.jsx';
 import { AIChatModal } from '../components/AIChatModal.jsx';
+import { TipTapRenderer } from '../components/TipTapEditor.jsx';
+import Leaderboard from '../components/Leaderboard.jsx';
+import { useRecentNotes } from '../hooks/useRecentNotes.js';
 
 const BACKEND_URL = new URL(api.defaults.baseURL).origin;
 
@@ -61,10 +64,6 @@ function FileAttachment({ fileUrl }) {
   );
 }
 
-// Randează conținut HTML din TipTap
-function renderHTML(html) {
-  return <div dangerouslySetInnerHTML={{ __html: html }} style={{ lineHeight: 1.8 }} />;
-}
 
 const REPORT_REASONS = [
   { value: 'PLAGIAT',             label: 'Plagiat' },
@@ -76,13 +75,17 @@ const REPORT_REASONS = [
 export default function NotePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, darkMode } = useAuth();
 
   const [note, setNote]       = useState(null);
   const [error, setError]     = useState(null);
   const [comments, setComments] = useState([]);
   const [quizModalOpen, setQuizModalOpen] = useState(false);
   const [chatModalOpen, setChatModalOpen] = useState(false);
+
+  // Flashcards — generare AI
+  const [flashGenStatus, setFlashGenStatus] = useState('idle'); // idle | loading | done | error
+  const [flashGenMsg, setFlashGenMsg]       = useState('');
 
   // Rating
   const [userRating, setUserRating]             = useState(0);
@@ -100,13 +103,23 @@ export default function NotePage() {
   const [reportDetails, setReportDetails]         = useState('');
   const [submittingReport, setSubmittingReport]   = useState(false);
 
+  // Appeal împotriva ștergerii programate
+  const [appealMsg, setAppealMsg]                 = useState('');
+  const [appealOpen, setAppealOpen]               = useState(false);
+  const [submittingAppeal, setSubmittingAppeal]   = useState(false);
+
   const isAuthor = user && note && user.id === note.authorId;
-  const isAdmin  = user?.role === 'ADMIN';
+  const isAdmin  = user?.role === 'ADMIN' || user?.role === 'HEAD_ADMIN';
   const canManage = isAuthor || isAdmin;
+
+  const { trackVisit } = useRecentNotes();
 
   useEffect(() => {
     api.get(`/notes/${id}`)
-      .then(res => setNote(res.data))
+      .then(res => {
+        setNote(res.data);
+        trackVisit(res.data);
+      })
       .catch(err => setError(err.response?.data?.error || err.message));
     api.get(`/notes/${id}/comments`)
       .then(res => setComments(res.data))
@@ -117,10 +130,24 @@ export default function NotePage() {
         .then(res => { if (res.data.value) setUserRating(res.data.value); })
         .catch(() => {});
     }
-  }, [id, user]);
+  }, [id, user, trackVisit]);
 
   if (error) return <p style={{ color: 'red' }}>❌ Eroare: {error}</p>;
   if (!note)  return <p>Se încarcă...</p>;
+
+  async function handleGenerateFlashcards() {
+    if (flashGenStatus === 'loading') return;
+    setFlashGenStatus('loading');
+    setFlashGenMsg('');
+    try {
+      const { data } = await api.post(`/notes/${id}/flashcards/generate`);
+      setFlashGenStatus('done');
+      setFlashGenMsg(`${data.count} flashcards generate și adăugate în colecția ta.`);
+    } catch (err) {
+      setFlashGenStatus('error');
+      setFlashGenMsg(err.response?.data?.error || 'Eroare la generarea flashcards.');
+    }
+  }
 
   async function handleRate(value) {
     if (!user || isAuthor || submittingRating) return;
@@ -172,6 +199,24 @@ export default function NotePage() {
     }
   }
 
+  async function submitNoteAppeal(e) {
+    e.preventDefault();
+    setSubmittingAppeal(true);
+    try {
+      await api.post(`/auth/notes/${id}/appeal`, { message: appealMsg });
+      // refetch nota pentru a actualiza appeal-ul afișat
+      const { data } = await api.get(`/notes/${id}`);
+      setNote(data);
+      setAppealOpen(false);
+      setAppealMsg('');
+      alert('Apelul tău a fost depus. Notița nu va fi ștearsă cât timp tichetul e activ.');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Nu am putut depune apelul.');
+    } finally {
+      setSubmittingAppeal(false);
+    }
+  }
+
   async function handleReportSubmit(e) {
     e.preventDefault();
     setSubmittingReport(true);
@@ -195,7 +240,10 @@ export default function NotePage() {
   }
 
   return (
-    <article>
+    <article className="printable">
+      <div className="no-print">
+        <Leaderboard featuredAuthor={note.author} />
+      </div>
       {/* Header: titlu sau formular de editare */}
       {editing ? (
         <form onSubmit={handleEditSave} style={{ marginBottom: 24 }}>
@@ -205,7 +253,7 @@ export default function NotePage() {
               value={editTitle}
               onChange={e => setEditTitle(e.target.value)}
               required
-              style={inputStyle}
+              style={inputStyle(darkMode)}
             />
           </label>
           <label style={labelStyle}>
@@ -214,14 +262,14 @@ export default function NotePage() {
               value={editChapter}
               onChange={e => setEditChapter(e.target.value)}
               placeholder="opțional"
-              style={inputStyle}
+              style={inputStyle(darkMode)}
             />
           </label>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button type="submit" disabled={savingEdit} style={btnPrimary}>
+            <button type="submit" disabled={savingEdit} style={btnPrimary(darkMode)}>
               {savingEdit ? 'Se salvează...' : 'Salvează'}
             </button>
-            <button type="button" onClick={() => setEditing(false)} style={btnSecondary}>
+            <button type="button" onClick={() => setEditing(false)} style={btnSecondary(darkMode)}>
               Anulează
             </button>
           </div>
@@ -233,18 +281,80 @@ export default function NotePage() {
             {note.subject} • clasa a {note.gradeLevel}-a • {note.type}
             {note.chapter && <> • capitol: {note.chapter}</>}
           </p>
-          <p>
-            de{' '}
-            <Link to={`/profile/${note.author.username}`} style={{ color: '#555' }}>
-              <strong>{note.author.username}</strong>
-            </Link>
-          </p>
-          {canManage && (
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
-              <button onClick={openEdit} style={btnSecondary}>Editează</button>
-              <button onClick={handleDelete} style={btnDanger}>Șterge</button>
+
+          {/* Banner ștergere programată — vizibil pentru autor și admini */}
+          {note.deletionScheduledAt && (isAuthor || isAdmin) && (
+            <div style={deletionBannerStyle(darkMode)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <span style={{ fontSize: 32 }}>⚠️</span>
+                <div>
+                  <strong style={{ fontSize: 16 }}>Notiță programată pentru ștergere</strong>
+                  <div style={{ fontSize: 13, color: darkMode ? '#fcd34d' : '#92400e', marginTop: 2 }}>
+                    Va fi ștearsă efectiv la {new Date(note.deletionScheduledAt).toLocaleString('ro-RO')}.
+                  </div>
+                </div>
+              </div>
+              {note.deletionReason && (
+                <p style={{ margin: '8px 0', padding: 10, borderRadius: 6, background: darkMode ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.06)' }}>
+                  <strong>Motiv:</strong> {note.deletionReason}
+                </p>
+              )}
+              {note.appeals && note.appeals.length > 0 ? (
+                <div style={{ marginTop: 10, padding: 10, borderRadius: 6, background: darkMode ? 'rgba(168,85,247,0.1)' : 'rgba(168,85,247,0.06)' }}>
+                  <strong>Apel depus</strong> — status: {note.appeals[0].status}
+                  {note.appeals[0].status !== 'RESOLVED' && (
+                    <p style={{ margin: '6px 0 0', fontSize: 13 }}>
+                      Cât timp acest tichet e activ, notița NU va fi ștearsă.
+                    </p>
+                  )}
+                  {note.appeals[0].adminResponse && (
+                    <p style={{ margin: '6px 0 0', fontSize: 13, fontStyle: 'italic' }}>
+                      Răspuns admin: {note.appeals[0].adminResponse}
+                    </p>
+                  )}
+                </div>
+              ) : isAuthor && (
+                appealOpen ? (
+                  <form onSubmit={submitNoteAppeal} style={{ marginTop: 10 }}>
+                    <textarea
+                      value={appealMsg}
+                      onChange={e => setAppealMsg(e.target.value)}
+                      rows={4} minLength={20} maxLength={5000} required
+                      placeholder="Explică de ce notița n-ar trebui ștearsă (min 20 caractere)..."
+                      style={appealTextarea(darkMode)}
+                    />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <button type="submit" disabled={submittingAppeal || appealMsg.trim().length < 20} style={btnPrimary(darkMode)}>
+                        {submittingAppeal ? 'Se trimite...' : 'Depune apel'}
+                      </button>
+                      <button type="button" onClick={() => setAppealOpen(false)} style={btnSecondary(darkMode)}>
+                        Anulează
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <button onClick={() => setAppealOpen(true)} style={{ ...btnPrimary(darkMode), marginTop: 8 }}>
+                    📩 Depune apel pentru a salva notița
+                  </button>
+                )
+              )}
             </div>
           )}
+          <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
+            {canManage && (
+              <>
+                <button onClick={openEdit} style={btnSecondary(darkMode)}>Editează</button>
+                <button onClick={handleDelete} style={btnDanger}>Șterge</button>
+              </>
+            )}
+            <button
+              onClick={() => window.print()}
+              style={btnSecondary(darkMode)}
+              title="Printează sau salvează ca PDF"
+            >
+              🖨️ Printează / PDF
+            </button>
+          </div>
         </>
       )}
 
@@ -258,7 +368,7 @@ export default function NotePage() {
       {/* Conținut */}
       {note.content && (
         <div style={{ marginTop: 24 }}>
-          {renderHTML(note.content)}
+          <TipTapRenderer content={note.content} />
         </div>
       )}
 
@@ -267,7 +377,7 @@ export default function NotePage() {
       )}
 
       {/* Rating */}
-      <section style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid #e0e0e0' }}>
+      <section className="no-print" style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid #e0e0e0' }}>
         <h3 style={{ marginBottom: 12 }}>⭐ Evaluare</h3>
         {isAuthor ? (
           <p style={{ color: '#888', fontSize: 14 }}>Nu poți vota propria notiță.</p>
@@ -287,48 +397,102 @@ export default function NotePage() {
         </div>
       </section>
 
-      {/* Butoane AI */}
-      <section style={{ marginTop: 24, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setQuizModalOpen(true)}
-          style={{
-            padding: '10px 16px',
-            backgroundColor: '#4caf50',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-          }}
-        >
-          📝 Generează Quiz cu AI
-        </button>
-        <button
-          onClick={() => setChatModalOpen(true)}
-          style={{
-            padding: '10px 16px',
-            backgroundColor: '#7b1fa2',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '14px',
-          }}
-        >
-          💬 Cere ajutorul AI
-        </button>
-        <QuizModal noteId={id} isOpen={quizModalOpen} onClose={() => setQuizModalOpen(false)} />
-        <AIChatModal
-          noteId={id}
-          noteTitle={note.title}
-          isOpen={chatModalOpen}
-          onClose={() => setChatModalOpen(false)}
-        />
+      {/* Butoane AI — disponibile doar pentru useri logați. Limită server-side:
+          3 quizuri și 5 replici de chat pe oră / user. */}
+      <section className="no-print" style={{ marginTop: 24, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        {user ? (
+          <>
+            <button
+              onClick={() => setQuizModalOpen(true)}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: '#4caf50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              📝 Generează Quiz cu AI
+            </button>
+            <button
+              onClick={() => setChatModalOpen(true)}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: '#7b1fa2',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              💬 Cere ajutorul AI
+            </button>
+            <button
+              onClick={handleGenerateFlashcards}
+              disabled={flashGenStatus === 'loading'}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: flashGenStatus === 'loading' ? '#888' : '#0277bd',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: flashGenStatus === 'loading' ? 'wait' : 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              {flashGenStatus === 'loading' ? '⏳ Se generează...' : '🎴 Generează flashcards'}
+            </button>
+            <QuizModal noteId={id} isOpen={quizModalOpen} onClose={() => setQuizModalOpen(false)} />
+            <AIChatModal
+              noteId={id}
+              noteTitle={note.title}
+              isOpen={chatModalOpen}
+              onClose={() => setChatModalOpen(false)}
+            />
+            {flashGenMsg && (
+              <div style={{
+                flexBasis: '100%',
+                marginTop: 4,
+                fontSize: 13,
+                color: flashGenStatus === 'error'
+                  ? (darkMode ? '#ff9999' : '#b91c1c')
+                  : (darkMode ? '#86efac' : '#16a34a'),
+              }}>
+                {flashGenStatus === 'error' ? '❌ ' : '✅ '}{flashGenMsg}
+                {flashGenStatus === 'done' && (
+                  <> <Link to="/flashcards/study" style={{ color: darkMode ? '#c9a8ff' : '#6366f1', fontWeight: 600 }}>
+                    Începe studiul →
+                  </Link></>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{
+            padding: '10px 14px',
+            border: `1px dashed ${darkMode ? 'rgba(168,85,247,0.5)' : 'rgba(124,58,237,0.4)'}`,
+            borderRadius: 6,
+            color: darkMode ? '#c9a8ff' : '#6b21a8',
+            fontSize: 14,
+          }}>
+            🔒 Funcțiile AI (quiz și explicații) sunt disponibile doar utilizatorilor logați.{' '}
+            <Link to="/login" style={{ color: darkMode ? '#e8d4ff' : '#6366f1', fontWeight: 600 }}>
+              Conectează-te
+            </Link>
+            {' '}sau{' '}
+            <Link to="/register" style={{ color: darkMode ? '#e8d4ff' : '#6366f1', fontWeight: 600 }}>
+              creează un cont
+            </Link>.
+          </div>
+        )}
       </section>
 
       {/* Raportează */}
       {user && !isAuthor && (
-        <div style={{ marginTop: 12 }}>
+        <div className="no-print" style={{ marginTop: 12 }}>
           <button
             onClick={() => setShowReport(true)}
             style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, textDecoration: 'underline', padding: 0 }}
@@ -341,31 +505,31 @@ export default function NotePage() {
       {/* Modal raportare */}
       {showReport && (
         <div style={modalOverlay}>
-          <div style={modalBox}>
+          <div style={modalBox(darkMode)}>
             <h3 style={{ marginTop: 0 }}>Raportează notița</h3>
             <form onSubmit={handleReportSubmit}>
               <label style={labelStyle}>
                 Motiv
-                <select value={reportReason} onChange={e => setReportReason(e.target.value)} style={inputStyle}>
+                <select value={reportReason} onChange={e => setReportReason(e.target.value)} style={inputStyle(darkMode)}>
                   {REPORT_REASONS.map(r => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </select>
               </label>
               <label style={labelStyle}>
-                Detalii <span style={{ color: '#888', fontWeight: 400 }}>(opțional)</span>
+                Detalii <span style={{ color: darkMode ? '#a89bc4' : '#888', fontWeight: 400 }}>(opțional)</span>
                 <textarea
                   value={reportDetails}
                   onChange={e => setReportDetails(e.target.value)}
                   rows={3}
-                  style={{ ...inputStyle, resize: 'vertical' }}
+                  style={{ ...inputStyle(darkMode), resize: 'vertical' }}
                 />
               </label>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button type="submit" disabled={submittingReport} style={btnPrimary}>
+                <button type="submit" disabled={submittingReport} style={btnPrimary(darkMode)}>
                   {submittingReport ? 'Se trimite...' : 'Trimite raport'}
                 </button>
-                <button type="button" onClick={() => setShowReport(false)} style={btnSecondary}>
+                <button type="button" onClick={() => setShowReport(false)} style={btnSecondary(darkMode)}>
                   Anulează
                 </button>
               </div>
@@ -374,65 +538,143 @@ export default function NotePage() {
         </div>
       )}
 
+      {/* Notițe similare (D1) */}
+      <div className="no-print">
+        <SimilarNotes noteId={id} darkMode={darkMode} />
+      </div>
+
       {/* Comentarii cu threading */}
-      <CommentsSection noteId={id} initialComments={comments} />
+      <div className="no-print">
+        <CommentsSection noteId={id} initialComments={comments} />
+      </div>
     </article>
+  );
+}
+
+function SimilarNotes({ noteId, darkMode }) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/notes/${noteId}/similar`, { params: { limit: 6 } })
+      .then(res => setItems(res.data))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [noteId]);
+
+  if (loading) return null;
+  if (items.length === 0) return null;
+
+  // Filtrăm out cele cu similarity foarte mică ca să nu arătăm "rezultate" slabe.
+  const good = items.filter(n => (n.similarity ?? 0) > 0.5);
+  if (good.length === 0) return null;
+
+  return (
+    <section style={{ marginTop: 32 }}>
+      <h2 style={{ fontSize: 18, marginBottom: 12, color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>
+        🔗 Notițe similare
+      </h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+        {good.map(n => {
+          const sim = Math.round((n.similarity ?? 0) * 100);
+          return (
+            <Link key={n.id} to={`/notes/${n.id}`} style={{
+              textDecoration: 'none', color: 'inherit',
+              padding: 12, borderRadius: 8,
+              border: darkMode ? '1px solid rgba(120, 60, 200, 0.2)' : '1px solid rgba(244, 114, 182, 0.25)',
+              background: darkMode ? 'rgba(20, 8, 50, 0.4)' : 'rgba(255, 255, 255, 0.6)',
+              display: 'flex', flexDirection: 'column', gap: 4,
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                <strong style={{ fontSize: 14, color: darkMode ? '#e8e0ff' : '#1a1a1a', lineHeight: 1.3 }}>
+                  {n.title}
+                </strong>
+                <span style={{
+                  fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 10, whiteSpace: 'nowrap',
+                  color: sim >= 75 ? '#16a34a' : sim >= 60 ? '#a16207' : '#6b7280',
+                  background: sim >= 75 ? 'rgba(34,197,94,0.15)' : sim >= 60 ? 'rgba(234,179,8,0.15)' : 'rgba(156,163,175,0.15)',
+                }}>{sim}%</span>
+              </div>
+              <span style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#888' }}>
+                {n.subject} • a {n.gradeLevel}-a
+              </span>
+              <span style={{ fontSize: 11, color: darkMode ? '#867aa3' : '#aaa' }}>
+                de {n.author?.username}
+                {n.author?.isTeacher && <span title="Profesor verificat" style={{ marginLeft: 4, color: '#22c55e' }}>✓</span>}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
 // Styles
 const labelStyle = { display: 'block', marginBottom: 12, fontWeight: 500 };
-const inputStyle = {
+const inputStyle = (darkMode) => ({
   display: 'block',
   width: '100%',
   padding: 8,
   marginTop: 4,
-  border: '1px solid #ccc',
-  borderRadius: 4,
+  background: darkMode ? 'transparent' : 'white',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid #ccc',
+  color: darkMode ? '#e8e0ff' : '#222',
+  borderRadius: 6,
   fontSize: 14,
   boxSizing: 'border-box',
-};
-const btnPrimary = {
+  transition: 'background 0.4s ease, border-color 0.4s ease, color 0.4s ease',
+});
+const btnPrimary = (darkMode) => ({
   padding: '8px 16px',
-  background: '#0066cc',
-  color: 'white',
-  border: 'none',
-  borderRadius: 4,
+  background: darkMode ? 'rgba(120, 40, 200, 0.3)' : '#0066cc',
+  color: darkMode ? '#c9a8ff' : 'white',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.55)' : 'none',
+  borderRadius: 6,
   cursor: 'pointer',
-};
-const btnSecondary = {
+  fontWeight: 500,
+});
+const btnSecondary = (darkMode) => ({
   padding: '8px 16px',
-  background: 'white',
-  color: '#333',
-  border: '1px solid #ccc',
-  borderRadius: 4,
+  background: 'transparent',
+  color: darkMode ? '#c9a8ff' : '#333',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.35)' : '1px solid #ccc',
+  borderRadius: 6,
   cursor: 'pointer',
-};
+});
 const btnDanger = {
   padding: '8px 16px',
   background: '#dc3545',
   color: 'white',
   border: 'none',
-  borderRadius: 4,
+  borderRadius: 6,
   cursor: 'pointer',
 };
 const modalOverlay = {
   position: 'fixed',
   top: 0, left: 0, right: 0, bottom: 0,
-  background: 'rgba(0,0,0,0.4)',
+  background: 'rgba(0,0,0,0.55)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   zIndex: 1000,
+  backdropFilter: 'blur(4px)',
 };
-const modalBox = {
-  background: 'white',
+const modalBox = (darkMode) => ({
+  background: darkMode ? 'rgba(20, 8, 50, 0.97)' : 'white',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid #ddd',
+  color: darkMode ? '#e8e0ff' : '#222',
   padding: 24,
-  borderRadius: 8,
+  borderRadius: 12,
   maxWidth: 480,
   width: '100%',
   margin: '0 16px',
-};
+  boxShadow: darkMode
+    ? '0 20px 60px rgba(120, 40, 200, 0.4)'
+    : '0 20px 60px rgba(0,0,0,0.2)',
+  backdropFilter: 'blur(14px)',
+});
 const docLinkStyle = {
   display: 'inline-flex',
   alignItems: 'center',
@@ -445,3 +687,20 @@ const docLinkStyle = {
   background: '#fafafa',
   fontSize: 14,
 };
+
+const deletionBannerStyle = (darkMode) => ({
+  margin: '16px 0 24px',
+  padding: 16,
+  borderRadius: 10,
+  background: darkMode ? 'rgba(245, 158, 11, 0.12)' : '#fef3c7',
+  border: darkMode ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid #fcd34d',
+  color: darkMode ? '#fcd34d' : '#92400e',
+});
+
+const appealTextarea = (darkMode) => ({
+  width: '100%', padding: 10, borderRadius: 6,
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid #d1d5db',
+  background: darkMode ? 'rgba(0,0,0,0.25)' : '#fff',
+  color: 'inherit', fontFamily: 'inherit', fontSize: 14, resize: 'vertical',
+  boxSizing: 'border-box',
+});

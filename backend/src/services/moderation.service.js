@@ -14,9 +14,10 @@ const REASON_LABELS = {
 
 // Returnează { verdict: 'VALID'|'INVALID'|'UNCERTAIN', text: string }
 // Dacă apelul AI eșuează, returnează null (raportul e salvat oricum).
-export async function moderateReport({ noteTitle, noteContent, noteSubject, reason, details }) {
+export async function moderateReport({ noteTitle, noteContent, noteSubject, fileText, reason, details }) {
   const reasonLabel = REASON_LABELS[reason] || reason;
   const contentSnippet = (noteContent || '').substring(0, 1500);
+  const fileSnippet = (fileText || '').substring(0, 2500);
 
   const prompt = `Ești un sistem de moderare pentru o platformă educațională românească.
 Un utilizator a raportat o notiță. Trebuie să evaluezi dacă raportul este legitim.
@@ -24,7 +25,8 @@ Un utilizator a raportat o notiță. Trebuie să evaluezi dacă raportul este le
 NOTIȚĂ RAPORTATĂ:
 - Titlu: ${noteTitle}
 - Materie: ${noteSubject || 'necunoscută'}
-- Conținut (extras): ${contentSnippet || '(fără conținut text)'}
+- Conținut (extras): ${contentSnippet || '(fără conținut text)'}${fileSnippet ? `
+- Conținutul fișierului atașat (extras din document/imagine): ${fileSnippet}` : ''}
 
 RAPORT:
 - Motiv: ${reasonLabel}

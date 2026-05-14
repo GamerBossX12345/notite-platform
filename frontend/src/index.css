@@ -168,10 +168,60 @@ code {
   background: rgba(80, 40, 140, 0.25);
 }
 
+/* Hover pe carduri de notita: marire usoara + rotatie wiggle */
+@keyframes noteWiggle {
+  0%, 100% { transform: scale(1.05) rotate(0deg); }
+  25%      { transform: scale(1.05) rotate(-2deg); }
+  75%      { transform: scale(1.05) rotate(2deg); }
+}
+
+.note-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.note-card:hover {
+  transform: scale(1.05);
+  animation: noteWiggle 2.8s ease-in-out 0.3s infinite;
+  box-shadow: 0 8px 24px rgba(168, 85, 247, 0.25);
+  border-color: rgba(168, 85, 247, 0.5) !important;
+  z-index: 5;
+  position: relative;
+}
+
+/* Tranzitie lina la schimbarea temei (dark <-> light) */
+body,
+#root,
+nav,
+aside,
+input,
+select,
+textarea,
+button,
+h1, h2, h3, h4, h5, h6,
+p, a, span, div {
+  transition:
+    background 0.4s ease,
+    background-color 0.4s ease,
+    color 0.4s ease,
+    border-color 0.4s ease;
+}
+
+/* Dropdown options vizibile in dark mode (default) — fara aceasta regula
+   browserul deseneaza optiunile pe fundal alb, iar textul mostenit e alb */
+select option {
+  background: #1a0b2e;
+  color: #e8e0ff;
+}
+
 /* Light Mode */
 [data-theme="light"] {
   color-scheme: light;
   color: #333;
+}
+
+[data-theme="light"] select option {
+  background: #ffffff;
+  color: #333333;
 }
 
 [data-theme="light"] body {
@@ -203,8 +253,22 @@ code {
 }
 
 [data-theme="light"] h1,
-[data-theme="light"] h2 {
+[data-theme="light"] h2,
+[data-theme="light"] h3,
+[data-theme="light"] h4,
+[data-theme="light"] h5,
+[data-theme="light"] h6 {
   color: #1a1a1a;
+}
+
+[data-theme="light"] strong {
+  color: #1a1a1a;
+}
+
+/* Stilurile inline care folosesc culori "dark-friendly" trebuie sa devina text negru in light mode */
+[data-theme="light"] table th,
+[data-theme="light"] table td {
+  color: #222;
 }
 
 [data-theme="light"] code {
@@ -247,4 +311,75 @@ code {
   background: rgba(244, 114, 182, 0.2);
   border: 1px solid rgba(244, 114, 182, 0.4);
   color: #be185d;
+}
+
+/* ── Print / Export PDF ──────────────────────────────────────────────────────
+   Când userul printează (sau salvează ca PDF), ascundem tot chrome-ul și lăsăm
+   doar conținutul notiței, pe fundal alb cu text negru. Elementele marcate cu
+   .no-print dispar. Containerul marcat .printable devine pagina. */
+@media print {
+  /* Fundal curat — fără gradient, fără orbs */
+  body {
+    background: #fff !important;
+  }
+  body::before,
+  body::after {
+    display: none !important;
+  }
+  #root {
+    background: #fff !important;
+    color: #000 !important;
+    backdrop-filter: none !important;
+    display: block !important;
+  }
+
+  /* Ascunde navigarea, sidebars și orice marcat explicit */
+  nav,
+  aside,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Zona printabilă ocupă toată pagina */
+  .printable {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Text lizibil pe alb — suprascriem culorile "dark-friendly" inline */
+  .printable,
+  .printable * {
+    color: #000 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .printable a {
+    color: #000 !important;
+    text-decoration: underline;
+  }
+  .printable h1,
+  .printable h2,
+  .printable h3 {
+    color: #000 !important;
+  }
+  .printable img {
+    max-width: 100% !important;
+  }
+
+  /* Evită tăierea elementelor importante peste pagini */
+  .printable img,
+  .printable table,
+  .printable pre,
+  .printable blockquote {
+    break-inside: avoid;
+  }
+
+  @page {
+    margin: 1.6cm;
+  }
 }

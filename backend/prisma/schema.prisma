@@ -20,17 +20,64 @@ model User {
   school       String?
   grade        Int?
   bio            String?
+  emailVerified            Boolean   @default(true)
+  emailVerificationToken   String?   @unique
+  emailVerificationExpires DateTime?
   showName       Boolean   @default(true)
+  showSchool     Boolean   @default(true)
+  showGrade      Boolean   @default(true)
+  notifyOnRating  Boolean  @default(true)
+  notifyOnComment Boolean  @default(true)
+  notifyOnReport  Boolean  @default(true)
+  defaultSubject    String?
+  defaultGradeLevel Int?
   darkMode       Boolean   @default(true)
   reputation     Int       @default(0)
   role           Role      @default(USER)
   suspendedUntil DateTime?
+  warning        String?
+
+  // Ban: cont blocat care va fi șters automat după N zile, dacă nu există
+  // un apel deschis. Setat de un admin dintr-un raport.
+  banned         Boolean   @default(false)
+  bannedAt       DateTime?
+  banReason      String?
+  banNoteId      String?
+  banCommentId   String?
+  banCount       Int       @default(0)
+
+  // Verificare profesor — automat la .edu sau aprobat manual de head admin.
+  isTeacher          Boolean   @default(false)
+  teacherVerifiedAt  DateTime?
+
   createdAt      DateTime  @default(now())
 
-  notes    Note[]
-  ratings  Rating[]
-  comments Comment[]
-  reports  Report[]
+  notes            Note[]
+  ratings          Rating[]
+  comments         Comment[]
+  reports          Report[]
+  actionedReports  Report[]       @relation("ReportActionedBy")
+  adminMessages    AdminMessage[]
+  deviceLogins     DeviceLogin[]
+  savedNotes       SavedNote[]
+  flashcards       Flashcard[]
+  chatMessages     ChatMessage[]
+  noteRequests       NoteRequest[] @relation("NoteRequestAuthor")
+  fulfilledRequests  NoteRequest[] @relation("NoteRequestFulfiller")
+  teacherRequests  TeacherRequest[]
+  reviewedTeacherRequests TeacherRequest[] @relation("TeacherRequestReviewedBy")
+  auditLogs        AuditLog[]  @relation("AuditLogTarget")
+  performedAudits  AuditLog[]  @relation("AuditLogActor")
+  banNote              Note?          @relation("BanNote",    fields: [banNoteId],    references: [id], onDelete: SetNull)
+  banComment           Comment?       @relation("BanComment", fields: [banCommentId], references: [id], onDelete: SetNull)
+  banAppeals           BanAppeal[]
+  openedAppeals        BanAppeal[]    @relation("AppealOpenedBy")
+  resolvedAppeals      BanAppeal[]    @relation("AppealResolvedBy")
+  noteAppeals          NoteAppeal[]
+  openedNoteAppeals    NoteAppeal[]   @relation("NoteAppealOpenedBy")
+  resolvedNoteAppeals  NoteAppeal[]   @relation("NoteAppealResolvedBy")
+  banRecords           BanRecord[]    @relation("UserBanRecords")
+  issuedBanRecords     BanRecord[]    @relation("AdminBanRecords")
 }
 
 model Note {
@@ -48,6 +95,10 @@ model Note {
   fileUrl    String?
   hidden     Boolean  @default(false)
 
+  // Text extras din fișierul atașat (PDF/Word/Excel/imagine via OCR/vision).
+  // Populat asincron la upload; folosit de AI (chat/quiz/flashcards/moderare).
+  extractedFileText String?
+
   // Câmpuri denormalizate — actualizate într-o tranzacție când se votează.
   // Alternativă: AVG/COUNT pe tabela Rating la fiecare listare. Mai lent.
   avgRating   Float @default(0)
@@ -57,12 +108,28 @@ model Note {
   // Fingerprint pentru detectorul de duplicate (vine în pasul 10).
   contentHash String?
 
+  // Embedding pentru căutare semantică (E5-small = 384 dim). JSON evită nevoia
+  // de pgvector — facem cosine similarity în Node.
+  embedding   Json?
+
+  // Ștergere planificată: notița e ascunsă acum și va fi ștearsă efectiv după
+  // termen, dacă autorul nu depune apel.
+  deletionScheduledAt DateTime?
+  deletionReason      String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   ratings  Rating[]
   comments Comment[]
   reports  Report[]
+  bannedUsers User[] @relation("BanNote")
+  appeals  NoteAppeal[]
+  savedBy  SavedNote[]
+  tags     NoteTag[]
+  flashcards Flashcard[]
+  fulfilledRequests NoteRequest[] @relation("NoteRequestFulfilled")
+  chatMessages ChatMessage[]
 
   @@index([subject, gradeLevel])
   @@index([authorId])
@@ -71,6 +138,7 @@ model Note {
 enum Role {
   USER
   ADMIN
+  HEAD_ADMIN
 }
 
 enum NoteType {
@@ -108,21 +176,27 @@ model Comment {
   note    Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
   parent  Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
   replies Comment[] @relation("CommentThread")
+  bannedUsers User[] @relation("BanComment")
 }
 
 model Report {
   id              String       @id @default(uuid())
-  reporterId      String
+  reporterId      String?
   noteId          String
   reason          ReportReason
   details         String?
   status          ReportStatus @default(PENDING)
   aiVerdict       String?
   aiVerdictText   String?
+  actionedById    String?
+  actionedAt      DateTime?
   createdAt       DateTime     @default(now())
 
-  reporter User @relation(fields: [reporterId], references: [id])
-  note     Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  reporter   User? @relation(fields: [reporterId], references: [id])
+  actionedBy User? @relation("ReportActionedBy", fields: [actionedById], references: [id], onDelete: SetNull)
+  note       Note  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([actionedById])
 }
 
 enum ReportReason {
@@ -136,4 +210,278 @@ enum ReportStatus {
   PENDING
   REVIEWED
   RESOLVED
+}
+
+model SystemConfig {
+  key   String  @id
+  value String?
+}
+
+model AdminMessage {
+  id        String   @id @default(uuid())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model BanAppeal {
+  id            String            @id @default(uuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message       String
+  status        AppealStatus      @default(PENDING)
+
+  // C2: dacă userul bifează "fă apelul public", după resolved devine vizibil
+  // în listingul public (anonimizat — username doar inițială).
+  isPublic      Boolean           @default(false)
+
+  openedById    String?
+  openedBy      User?             @relation("AppealOpenedBy",   fields: [openedById],   references: [id], onDelete: SetNull)
+  openedAt      DateTime?
+
+  resolvedById  String?
+  resolvedBy    User?             @relation("AppealResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt    DateTime?
+  resolution    AppealResolution?
+  adminResponse String?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Jurnal permanent al ban-urilor: se creează un rând la fiecare ban (automat),
+// rămâne și după ce ban-ul e ridicat. Sursa de adevăr pentru istoricul de ban.
+model BanRecord {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation("UserBanRecords", fields: [userId], references: [id], onDelete: Cascade)
+  reason      String?
+  noteId      String?
+  commentId   String?
+  bannedById  String?
+  bannedBy    User?     @relation("AdminBanRecords", fields: [bannedById], references: [id], onDelete: SetNull)
+  bannedAt    DateTime  @default(now())
+  liftedAt    DateTime?
+  liftedById  String?
+  liftReason  String?   // 'ADMIN_UNBAN' | 'APPEAL_OVERTURNED'
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([bannedAt])
+}
+
+enum AppealStatus {
+  PENDING    // depus de utilizator, niciun admin nu s-a uitat încă
+  OPEN       // admin a deschis tichetul și investighează
+  RESOLVED   // soluționat (vezi resolution)
+}
+
+enum AppealResolution {
+  UPHELD       // ban-ul rămâne — utilizatorul va fi șters la termen
+  OVERTURNED   // ban-ul e ridicat
+}
+
+model NoteAppeal {
+  id            String            @id @default(uuid())
+  noteId        String
+  note          Note              @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message       String
+  status        AppealStatus      @default(PENDING)
+
+  openedById    String?
+  openedBy      User?             @relation("NoteAppealOpenedBy",   fields: [openedById],   references: [id], onDelete: SetNull)
+  openedAt      DateTime?
+
+  resolvedById  String?
+  resolvedBy    User?             @relation("NoteAppealResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt    DateTime?
+  resolution    AppealResolution?
+  adminResponse String?
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([noteId])
+  @@index([status])
+}
+
+model DeviceLogin {
+  id                String    @id @default(uuid())
+  userId            String
+  deviceFingerprint String
+  lastLoginAt       DateTime  @default(now())
+  verifiedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceFingerprint])
+  @@index([userId])
+}
+
+// Tag-uri pe notițe — hibrid: tag-uri "oficiale" definite de admin (apar primele
+// la autocomplete) și tag-uri free-form create de useri.
+model Tag {
+  id         String    @id @default(uuid())
+  name       String    @unique // normalizat lowercase
+  isOfficial Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  notes      NoteTag[]
+
+  @@index([isOfficial])
+}
+
+model NoteTag {
+  noteId String
+  tagId  String
+  note   Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId],  references: [id], onDelete: Cascade)
+
+  @@id([noteId, tagId])
+  @@index([tagId])
+}
+
+// Cerere de verificare ca profesor — userul completează un form în Setări,
+// head admin aprobă sau respinge. Pentru .edu se setează direct isTeacher la
+// înregistrare, fără TeacherRequest.
+model TeacherRequest {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message       String                            // context + dovezi
+  status        TeacherRequestStatus @default(PENDING)
+  reviewedById  String?
+  reviewedBy    User?     @relation("TeacherRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt    DateTime?
+  adminResponse String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum TeacherRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Audit log — fiecare acțiune semnificativă asupra unui cont (ban/unban, warning,
+// suspend, role change, ștergere notițe, aprobări) e înregistrată ca rând aici.
+// Userul vizat poate vedea istoria propriilor evenimente; head admin vede tot.
+model AuditLog {
+  id          String       @id @default(uuid())
+  // Userul afectat (target). Acțiunile pe useri inactivi setează targetUserId = null.
+  targetUserId String?
+  targetUser   User?       @relation("AuditLogTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  // Cine a făcut acțiunea (admin / sistem). Null = sistem.
+  actorId     String?
+  actor       User?        @relation("AuditLogActor",  fields: [actorId],      references: [id], onDelete: SetNull)
+  action      String        // ex: "BAN", "UNBAN", "WARN", "SUSPEND", "ROLE_CHANGE", "TEACHER_APPROVE"
+  details     String?       // JSON sau text — context per acțiune
+  createdAt   DateTime      @default(now())
+
+  @@index([targetUserId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// Istoricul conversațiilor AI — persistat per utilizator + per notiță, ca
+// chat-ul să-și amintească discuția la redeschidere ("AI personal de studiu").
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  role      String   // 'user' | 'assistant'
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([userId, noteId, createdAt])
+}
+
+// Cereri de notițe — un user cere un material care lipsește de pe platformă
+// ("caut notițe de fizică clasa 11 cap. termodinamică"), alții îl împlinesc
+// legând o notiță existentă.
+model NoteRequest {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation("NoteRequestAuthor", fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String              // rezumat scurt al cererii
+  description String?             // detalii opționale
+  subject     String?             // hint de materie
+  gradeLevel  Int?                // hint de clasă
+  status      NoteRequestStatus @default(OPEN)
+
+  // Când e împlinită: ce notiță a satisfăcut-o + cine.
+  fulfilledNoteId String?
+  fulfilledNote   Note?    @relation("NoteRequestFulfilled", fields: [fulfilledNoteId], references: [id], onDelete: SetNull)
+  fulfilledById   String?
+  fulfilledBy     User?    @relation("NoteRequestFulfiller",  fields: [fulfilledById], references: [id], onDelete: SetNull)
+  fulfilledAt     DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([userId])
+}
+
+enum NoteRequestStatus {
+  OPEN        // deschisă, așteaptă să fie împlinită
+  FULFILLED   // cineva a legat o notiță
+  CLOSED      // închisă de autor sau admin (fără împlinire)
+}
+
+// Flashcards — generate de AI dintr-o notiță sau scrise manual. Folosesc
+// algoritmul SM-2 (SuperMemo 2) pentru repetiție spațială.
+model Flashcard {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  noteId       String?
+  note         Note?    @relation(fields: [noteId], references: [id], onDelete: SetNull)
+
+  front        String   // întrebarea
+  back         String   // răspunsul
+
+  // SM-2 state
+  easeFactor   Float    @default(2.5)
+  interval     Int      @default(0)  // zile până la următoarea revizuire
+  repetitions  Int      @default(0)  // câte revizuiri reușite consecutive
+  dueDate      DateTime @default(now())
+  lastReviewedAt DateTime?
+
+  createdAt    DateTime @default(now())
+
+  @@index([userId, dueDate])
+  @@index([noteId])
+}
+
+// Notițe marcate ca "salvate" de un utilizator (bookmark).
+model SavedNote {
+  id        String   @id @default(uuid())
+  userId    String
+  noteId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, noteId])
+  @@index([userId])
+  @@index([noteId])
 }

@@ -3,52 +3,75 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { api } from '../api/client.js';
 
+const SUBJECTS = [
+  'Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică',
+  'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză',
+  'Filosofie', 'Economie', 'Psihologie',
+];
+const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
+
 export default function SettingsPage() {
-  const { user, loading, logout, darkMode, updateDarkMode } = useAuth();
+  const { user, loading, logout, darkMode } = useAuth();
   const navigate = useNavigate();
 
   const [tab, setTab] = useState('profile');
 
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    username: '',
-    school: '',
-    grade: '',
-    bio: '',
+    name: '', email: '', username: '', school: '', grade: '', bio: '',
   });
-  const [showName, setShowName] = useState(true);
-  const [themeDark, setThemeDark] = useState(true);
+  const [showName, setShowName]   = useState(true);
+  const [showSchool, setShowSchool] = useState(true);
+  const [showGrade, setShowGrade]   = useState(true);
+
+  const [notifyOnRating, setNotifyOnRating]   = useState(true);
+  const [notifyOnComment, setNotifyOnComment] = useState(true);
+  const [notifyOnReport, setNotifyOnReport]   = useState(true);
+
+  const [defaultSubject, setDefaultSubject]       = useState('');
+  const [defaultGradeLevel, setDefaultGradeLevel] = useState('');
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword]         = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordError, setPasswordError]     = useState('');
+
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState('');
+  const [saved, setSaved]   = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [confirmError, setConfirmError] = useState('');
-  const [deletePassword, setDeletePassword] = useState('');
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState('');
+  const [confirmError, setConfirmError]       = useState('');
+  const [deletePassword, setDeletePassword]   = useState('');
+  const [deleting, setDeleting]               = useState(false);
+  const [deleteError, setDeleteError]         = useState('');
 
   useEffect(() => {
     if (!loading && !user) navigate('/login', { replace: true });
   }, [loading, user, navigate]);
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name || '',
-        email: user.email || '',
-        username: user.username || '',
-        school: user.school || '',
-        grade: user.grade || '',
-        bio: user.bio || '',
-      });
-      setShowName(user.showName ?? true);
-      setThemeDark(user.darkMode ?? true);
-    }
+    if (!user) return;
+    setFormData({
+      name: user.name || '',
+      email: user.email || '',
+      username: user.username || '',
+      school: user.school || '',
+      grade: user.grade || '',
+      bio: user.bio || '',
+    });
+    setShowName(user.showName ?? true);
+    setShowSchool(user.showSchool ?? true);
+    setShowGrade(user.showGrade ?? true);
+    setNotifyOnRating(user.notifyOnRating ?? true);
+    setNotifyOnComment(user.notifyOnComment ?? true);
+    setNotifyOnReport(user.notifyOnReport ?? true);
+    setDefaultSubject(user.defaultSubject || '');
+    // Dacă userul nu și-a setat explicit clasa implicită, folosim clasa de la
+    // înregistrare ca valoare prepopulată. Userul poate schimba la "Toate clasele".
+    setDefaultGradeLevel(
+      user.defaultGradeLevel != null
+        ? String(user.defaultGradeLevel)
+        : (user.grade != null ? String(user.grade) : '')
+    );
   }, [user]);
-
-  useEffect(() => {
-    setThemeDark(darkMode ?? true);
-  }, [darkMode]);
 
   if (loading || !user) return <p>Se încarcă...</p>;
 
@@ -61,6 +84,11 @@ export default function SettingsPage() {
     formData.email !== (user?.email || '') ||
     formData.username !== (user?.username || '');
 
+  function flashSaved(key) {
+    setSaved(key);
+    setTimeout(() => setSaved(''), 2500);
+  }
+
   async function handleSaveProfile() {
     setConfirmError('');
     if (sensitiveChanged && !confirmPassword) {
@@ -68,7 +96,6 @@ export default function SettingsPage() {
       return;
     }
     setSaving(true);
-    setSaved('');
     try {
       await api.patch('/auth/profile', {
         name: formData.name || undefined,
@@ -79,9 +106,8 @@ export default function SettingsPage() {
         bio: formData.bio || undefined,
         password: sensitiveChanged ? confirmPassword : undefined,
       });
-      setSaved('profile');
+      flashSaved('profile');
       setConfirmPassword('');
-      setTimeout(() => setSaved(''), 2500);
     } catch (err) {
       setConfirmError(err.response?.data?.error || 'Eroare la salvare');
     } finally {
@@ -89,22 +115,65 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleSaveDisplay() {
+  async function handleSavePrivacy() {
     setSaving(true);
-    setSaved('');
     try {
-      await api.patch('/auth/settings', { showName });
-      setSaved('display');
-      setTimeout(() => setSaved(''), 2500);
+      await api.patch('/auth/settings', { showName, showSchool, showGrade });
+      flashSaved('privacy');
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleSaveTheme() {
-    await updateDarkMode(themeDark);
-    setSaved('theme');
-    setTimeout(() => setSaved(''), 2500);
+  async function handleSaveNotifications() {
+    setSaving(true);
+    try {
+      await api.patch('/auth/settings', { notifyOnRating, notifyOnComment, notifyOnReport });
+      flashSaved('notifications');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveHomepage() {
+    setSaving(true);
+    try {
+      await api.patch('/auth/settings', {
+        defaultSubject: defaultSubject || null,
+        defaultGradeLevel: defaultGradeLevel ? Number(defaultGradeLevel) : null,
+      });
+      flashSaved('homepage');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    setPasswordError('');
+    if (!currentPassword || !newPassword) {
+      setPasswordError('Completează ambele câmpuri de parolă.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError('Parola nouă trebuie să aibă minim 8 caractere.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('Parola nouă și confirmarea nu se potrivesc.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post('/auth/change-password', { currentPassword, newPassword });
+      flashSaved('password');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (err) {
+      setPasswordError(err.response?.data?.error || 'Eroare la schimbarea parolei');
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -112,9 +181,7 @@ export default function SettingsPage() {
       setDeleteError('Introduceți parola pentru confirmare');
       return;
     }
-    if (!window.confirm('Ești sigur? Ștergerea contului este permanentă și nu poate fi anulată.')) {
-      return;
-    }
+    if (!window.confirm('Ești sigur? Ștergerea contului este permanentă și nu poate fi anulată.')) return;
 
     setDeleting(true);
     setDeleteError('');
@@ -132,282 +199,193 @@ export default function SettingsPage() {
     <div style={{ maxWidth: 600 }}>
       <h1 style={{ fontSize: 28, marginBottom: 24 }}>Setări cont</h1>
 
-      {/* Tabs */}
-      <div style={tabsStyle}>
-        <button
-          onClick={() => setTab('profile')}
-          style={tab === 'profile' ? activeTabStyle : inactiveTabStyle}
-        >
-          Profil
-        </button>
-        <button
-          onClick={() => setTab('display')}
-          style={tab === 'display' ? activeTabStyle : inactiveTabStyle}
-        >
-          Afișare
-        </button>
-        <button
-          onClick={() => setTab('danger')}
-          style={tab === 'danger' ? { ...activeTabStyle, color: '#ff4444' } : { ...inactiveTabStyle, color: '#ff6666' }}
-        >
-          Pericol
-        </button>
+      <div style={tabsStyle(darkMode)}>
+        <TabBtn active={tab === 'profile'}      onClick={() => setTab('profile')}      label="Profil" />
+        <TabBtn active={tab === 'privacy'}      onClick={() => setTab('privacy')}      label="Confidențialitate" />
+        <TabBtn active={tab === 'notifications'} onClick={() => setTab('notifications')} label="Notificări"         />
+        <TabBtn active={tab === 'homepage'}     onClick={() => setTab('homepage')}     label="Homepage"          />
+        <TabBtn active={tab === 'teacher'}      onClick={() => setTab('teacher')}      label="Profesor"          />
+        <TabBtn active={tab === 'password'}     onClick={() => setTab('password')}     label="Parolă" />
+        <TabBtn active={tab === 'danger'}       onClick={() => setTab('danger')}       label="Pericol" danger />
       </div>
 
-      {/* Profile Tab */}
+      {/* PROFIL */}
       {tab === 'profile' && (
-        <div style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Date profil</h2>
-          <p style={{ marginBottom: 20, color: '#aaa', fontSize: 14 }}>
-            Actualizează informațiile tale personale.
-          </p>
+        <div style={sectionStyle(darkMode)}>
+          <h2 style={sectionTitleStyle(darkMode)}>Date profil</h2>
+          <p style={mutedStyle(darkMode)}>Actualizează informațiile tale personale.</p>
+
+          <Field label="Nume"   name="name"     value={formData.name}     onChange={handleInputChange} placeholder="Ex: Ion Popescu" />
+          <Field label="Email"  name="email"    value={formData.email}    onChange={handleInputChange} type="email" placeholder="Ex: ion@example.com" />
+          <Field label="Username" name="username" value={formData.username} onChange={handleInputChange} placeholder="Ex: ionpop" />
+          <Field label="Școală" name="school"   value={formData.school}   onChange={handleInputChange} placeholder="Ex: Colegiul Național X" />
+          <Field label="Clasa"  name="grade"    value={formData.grade}    onChange={handleInputChange} type="number" min="5" max="12" />
 
           <div style={formGroupStyle}>
-            <label style={labelStyle}>Nume</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              style={inputStyle}
-              placeholder="Ex: Ion Popescu"
-            />
-          </div>
-
-          <div style={formGroupStyle}>
-            <label style={labelStyle}>Email</label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              style={inputStyle}
-              placeholder="Ex: ion@example.com"
-            />
-          </div>
-
-          <div style={formGroupStyle}>
-            <label style={labelStyle}>Username</label>
-            <input
-              type="text"
-              name="username"
-              value={formData.username}
-              onChange={handleInputChange}
-              style={inputStyle}
-              placeholder="Ex: ionpop"
-            />
-          </div>
-
-          <div style={formGroupStyle}>
-            <label style={labelStyle}>Școală</label>
-            <input
-              type="text"
-              name="school"
-              value={formData.school}
-              onChange={handleInputChange}
-              style={inputStyle}
-              placeholder="Ex: Colegiul Național X"
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ ...formGroupStyle, flex: 1 }}>
-              <label style={labelStyle}>Clasa</label>
-              <input
-                type="number"
-                name="grade"
-                value={formData.grade}
-                onChange={handleInputChange}
-                style={inputStyle}
-                min="5"
-                max="12"
-              />
-            </div>
-          </div>
-
-          <div style={formGroupStyle}>
-            <label style={labelStyle}>Bio</label>
+            <label style={labelStyle(darkMode)}>Bio</label>
             <textarea
-              name="bio"
-              value={formData.bio}
-              onChange={handleInputChange}
-              style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }}
+              name="bio" value={formData.bio} onChange={handleInputChange}
+              style={{ ...inputStyle(darkMode), minHeight: 80, resize: 'vertical' }}
               placeholder="Câteva cuvinte despre tine..."
             />
           </div>
 
           {sensitiveChanged && (
-            <div style={{ ...formGroupStyle, marginTop: 8, padding: '12px 14px', borderRadius: 8, border: '1px solid rgba(251, 191, 36, 0.4)', background: 'rgba(251, 191, 36, 0.07)' }}>
-              <label style={{ ...labelStyle, color: '#fbbf24' }}>
+            <div style={warnBoxStyle}>
+              <label style={{ ...labelStyle(darkMode), color: '#fbbf24' }}>
                 ⚠ Ai modificat emailul sau username-ul. Confirmă cu parola ta:
               </label>
               <input
-                type="password"
-                value={confirmPassword}
+                type="password" value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setConfirmError(''); }}
-                style={inputStyle}
-                placeholder="Parola ta"
+                style={inputStyle(darkMode)} placeholder="Parola ta"
               />
             </div>
           )}
 
-          {confirmError && (
-            <p style={{ color: '#ff6666', fontSize: 14, marginTop: 8, marginBottom: 0 }}>❌ {confirmError}</p>
-          )}
+          {confirmError && <p style={errorStyle}>❌ {confirmError}</p>}
 
-          <button
-            onClick={handleSaveProfile}
-            disabled={saving}
-            style={saving ? { ...btnStyle, opacity: 0.6 } : btnStyle}
-          >
-            {saving ? 'Se salvează...' : saved === 'profile' ? '✓ Salvat!' : 'Salvează profil'}
-          </button>
+          <SaveBtn onClick={handleSaveProfile} saving={saving} saved={saved === 'profile'} label="Salvează profil" />
         </div>
       )}
 
-      {/* Display Tab */}
-      {tab === 'display' && (
-        <div style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Preferință afișare</h2>
-          <p style={{ marginBottom: 20, color: '#aaa', fontSize: 14 }}>
-            Alege ce se vede ca titlu pe pagina ta de profil. Pe leaderboard apare întotdeauna username-ul.
-          </p>
+      {/* CONFIDENȚIALITATE */}
+      {tab === 'privacy' && (
+        <div style={sectionStyle(darkMode)}>
+          <h2 style={sectionTitleStyle(darkMode)}>Confidențialitate profil</h2>
+          <p style={mutedStyle(darkMode)}>Alege ce informații sunt vizibile public pe pagina ta de profil.</p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <label style={optionStyle(showName)}>
-              <input
-                type="radio"
-                name="displayMode"
-                checked={showName}
-                onChange={() => setShowName(true)}
-                style={{ accentColor: '#a855f7' }}
-              />
-              <div>
-                <strong>Nume</strong>
-                <span style={{ display: 'block', fontSize: 13, color: '#999', marginTop: 2 }}>
-                  {formData.name ? `Apare ca: "${formData.name}"` : 'Nu ai setat un nume — se va folosi username-ul'}
-                </span>
-              </div>
-            </label>
+          <Toggle
+            checked={showName} onChange={setShowName}
+            title="Afișează numele real"
+            desc={formData.name ? `Pe profil va apărea "${formData.name}" în loc de "@${formData.username}"` : 'Nu ai un nume setat — va apărea username-ul'}
+          />
+          <Toggle
+            checked={showSchool} onChange={setShowSchool}
+            title="Afișează școala"
+            desc={formData.school ? `Vizibil: "${formData.school}"` : 'Nu ai școala setată'}
+          />
+          <Toggle
+            checked={showGrade} onChange={setShowGrade}
+            title="Afișează clasa"
+            desc={formData.grade ? `Vizibil: clasa a ${formData.grade}-a` : 'Nu ai clasa setată'}
+          />
 
-            <label style={optionStyle(!showName)}>
-              <input
-                type="radio"
-                name="displayMode"
-                checked={!showName}
-                onChange={() => setShowName(false)}
-                style={{ accentColor: '#a855f7' }}
-              />
-              <div>
-                <strong>Username</strong>
-                <span style={{ display: 'block', fontSize: 13, color: '#999', marginTop: 2 }}>
-                  Apare ca: "@{formData.username}"
-                </span>
-              </div>
-            </label>
-          </div>
-
-          <div style={previewBoxStyle}>
-            <span style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 4 }}>Previzualizare profil:</span>
-            <span style={{ fontSize: 20, fontWeight: 600, color: '#e8e0ff' }}>
-              {showName && formData.name ? formData.name : `@${formData.username}`}
-            </span>
-          </div>
-
-          <button
-            onClick={handleSaveDisplay}
-            disabled={saving}
-            style={saving ? { ...btnStyle, opacity: 0.6 } : btnStyle}
-          >
-            {saving ? 'Se salvează...' : saved === 'display' ? '✓ Salvat!' : 'Salvează preferință'}
-          </button>
-
-          <h2 style={{ ...sectionTitleStyle, marginTop: 32 }}>Temă</h2>
-          <p style={{ marginBottom: 20, color: '#aaa', fontSize: 14 }}>
-            Alege tema de culoare pentru interfață.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <label style={optionStyle(themeDark)}>
-              <input
-                type="radio"
-                name="theme"
-                checked={themeDark}
-                onChange={() => setThemeDark(true)}
-                style={{ accentColor: '#a855f7' }}
-              />
-              <div>
-                <strong>Modul Întunecat</strong>
-                <span style={{ display: 'block', fontSize: 13, color: '#999', marginTop: 2 }}>
-                  Tema implicită cu fundal închis
-                </span>
-              </div>
-            </label>
-
-            <label style={optionStyle(!themeDark)}>
-              <input
-                type="radio"
-                name="theme"
-                checked={!themeDark}
-                onChange={() => setThemeDark(false)}
-                style={{ accentColor: '#a855f7' }}
-              />
-              <div>
-                <strong>Modul Luminos</strong>
-                <span style={{ display: 'block', fontSize: 13, color: '#999', marginTop: 2 }}>
-                  Tema alternativă cu fundal deschis
-                </span>
-              </div>
-            </label>
-          </div>
-
-          <button
-            onClick={handleSaveTheme}
-            disabled={saving}
-            style={saving ? { ...btnStyle, opacity: 0.6, marginTop: 20 } : { ...btnStyle, marginTop: 20 }}
-          >
-            {saving ? 'Se salvează...' : saved === 'theme' ? '✓ Salvat!' : 'Salvează temă'}
-          </button>
+          <SaveBtn onClick={handleSavePrivacy} saving={saving} saved={saved === 'privacy'} label="Salvează" />
         </div>
       )}
 
-      {/* Danger Zone Tab */}
+      {/* NOTIFICĂRI */}
+      {tab === 'notifications' && (
+        <div style={sectionStyle(darkMode)}>
+          <h2 style={sectionTitleStyle(darkMode)}>Notificări</h2>
+          <p style={mutedStyle(darkMode)}>Alege pentru ce evenimente vrei să primești notificări.</p>
+
+          <Toggle
+            checked={notifyOnRating} onChange={setNotifyOnRating}
+            title="Rating-uri noi"
+            desc="Când cineva votează una dintre notițele tale"
+          />
+          <Toggle
+            checked={notifyOnComment} onChange={setNotifyOnComment}
+            title="Comentarii noi"
+            desc="Când cineva comentează la una dintre notițele tale"
+          />
+          <Toggle
+            checked={notifyOnReport} onChange={setNotifyOnReport}
+            title="Raportări"
+            desc="Când o notiță de-a ta este raportată sau ascunsă"
+          />
+
+          <SaveBtn onClick={handleSaveNotifications} saving={saving} saved={saved === 'notifications'} label="Salvează" />
+        </div>
+      )}
+
+      {/* HOMEPAGE */}
+      {tab === 'homepage' && (
+        <div style={sectionStyle(darkMode)}>
+          <h2 style={sectionTitleStyle(darkMode)}>Preferințe homepage</h2>
+          <p style={mutedStyle(darkMode)}>
+            Setează filtre implicite pentru pagina principală — vor fi aplicate automat când intri în site.
+          </p>
+
+          <div style={formGroupStyle}>
+            <label style={labelStyle(darkMode)}>Materie implicită</label>
+            <select value={defaultSubject} onChange={e => setDefaultSubject(e.target.value)} style={inputStyle(darkMode)}>
+              <option value="">— Toate materiile —</option>
+              {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div style={formGroupStyle}>
+            <label style={labelStyle(darkMode)}>Clasă implicită</label>
+            <select value={defaultGradeLevel} onChange={e => setDefaultGradeLevel(e.target.value)} style={inputStyle(darkMode)}>
+              <option value="">— Toate clasele —</option>
+              {GRADE_LEVELS.map(g => <option key={g} value={g}>a {g}-a</option>)}
+            </select>
+            {user.grade && (
+              <small style={{ display: 'block', marginTop: 6, fontSize: 12, color: darkMode ? '#999' : '#666' }}>
+                Implicit: clasa de la înregistrare (a {user.grade}-a). Selectează "Toate clasele" dacă vrei să vezi tot.
+              </small>
+            )}
+          </div>
+
+          <SaveBtn onClick={handleSaveHomepage} saving={saving} saved={saved === 'homepage'} label="Salvează" />
+        </div>
+      )}
+
+      {/* PROFESOR */}
+      {tab === 'teacher' && (
+        <TeacherTab darkMode={darkMode} user={user} />
+      )}
+
+      {/* PAROLĂ */}
+      {tab === 'password' && (
+        <div style={sectionStyle(darkMode)}>
+          <h2 style={sectionTitleStyle(darkMode)}>Schimbare parolă</h2>
+          <p style={mutedStyle(darkMode)}>Alege o parolă nouă (minim 8 caractere).</p>
+
+          <div style={formGroupStyle}>
+            <label style={labelStyle(darkMode)}>Parola actuală</label>
+            <input type="password" value={currentPassword} onChange={e => { setCurrentPassword(e.target.value); setPasswordError(''); }} style={inputStyle(darkMode)} />
+          </div>
+          <div style={formGroupStyle}>
+            <label style={labelStyle(darkMode)}>Parola nouă</label>
+            <input type="password" value={newPassword} onChange={e => { setNewPassword(e.target.value); setPasswordError(''); }} style={inputStyle(darkMode)} />
+          </div>
+          <div style={formGroupStyle}>
+            <label style={labelStyle(darkMode)}>Confirmă parola nouă</label>
+            <input type="password" value={confirmNewPassword} onChange={e => { setConfirmNewPassword(e.target.value); setPasswordError(''); }} style={inputStyle(darkMode)} />
+          </div>
+
+          {passwordError && <p style={errorStyle}>❌ {passwordError}</p>}
+
+          <SaveBtn onClick={handleChangePassword} saving={saving} saved={saved === 'password'} label="Schimbă parola" />
+        </div>
+      )}
+
+      {/* PERICOL */}
       {tab === 'danger' && (
-        <div style={{ ...sectionStyle, borderColor: 'rgba(255, 68, 68, 0.2)', background: 'rgba(255, 20, 20, 0.08)' }}>
-          <h2 style={{ ...sectionTitleStyle, color: '#ff6666' }}>Ștergere cont</h2>
-          <p style={{ marginBottom: 20, color: '#ff9999', fontSize: 14 }}>
+        <div style={dangerSectionStyle(darkMode)}>
+          <h2 style={dangerTitleStyle(darkMode)}>Ștergere cont</h2>
+          <p style={dangerWarnStyle(darkMode)}>
             <strong>Atenție!</strong> Ștergerea contului este permanentă. Toate notițele, comentariile și datele vor fi șterse.
           </p>
 
           <div style={formGroupStyle}>
-            <label style={labelStyle}>Introduceți parola pentru confirmare:</label>
+            <label style={labelStyle(darkMode)}>Introduceți parola pentru confirmare:</label>
             <input
-              type="password"
-              value={deletePassword}
+              type="password" value={deletePassword}
               onChange={(e) => setDeletePassword(e.target.value)}
-              style={inputStyle}
-              placeholder="Parola ta"
-              disabled={deleting}
+              style={inputStyle(darkMode)} placeholder="Parola ta" disabled={deleting}
             />
           </div>
 
-          {deleteError && (
-            <p style={{ color: '#ff6666', fontSize: 14, marginBottom: 12 }}>❌ {deleteError}</p>
-          )}
+          {deleteError && <p style={{ color: darkMode ? '#ff6666' : '#b91c1c', fontSize: 14, marginBottom: 12 }}>❌ {deleteError}</p>}
 
           <button
-            onClick={handleDeleteAccount}
-            disabled={deleting}
-            style={{
-              padding: '10px 24px',
-              background: deleting ? 'rgba(255, 68, 68, 0.5)' : 'rgba(255, 68, 68, 0.8)',
-              color: 'white',
-              border: '1px solid #ff4444',
-              borderRadius: 6,
-              cursor: deleting ? 'default' : 'pointer',
-              fontSize: 15,
-              fontWeight: 600,
-            }}
+            onClick={handleDeleteAccount} disabled={deleting}
+            style={dangerBtnStyle(darkMode, deleting)}
           >
             {deleting ? 'Se șterge...' : '🗑 Șterge permanent contul'}
           </button>
@@ -417,99 +395,262 @@ export default function SettingsPage() {
   );
 }
 
-const tabsStyle = {
-  display: 'flex',
-  gap: 8,
-  marginBottom: 24,
-  borderBottom: '1px solid rgba(100, 60, 160, 0.2)',
-};
+function TeacherTab({ darkMode, user }) {
+  const [request, setRequest] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [message, setMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-const activeTabStyle = {
-  padding: '10px 16px',
-  background: 'transparent',
-  border: 'none',
-  borderBottom: '2px solid rgba(168, 85, 247, 0.8)',
-  color: '#a855f7',
-  cursor: 'pointer',
-  fontSize: 14,
-  fontWeight: 600,
-};
+  useEffect(() => {
+    api.get('/auth/teacher-request/me')
+      .then(res => setRequest(res.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
-const inactiveTabStyle = {
-  padding: '10px 16px',
-  background: 'transparent',
-  border: 'none',
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    if (message.trim().length < 30) {
+      setError('Mesajul trebuie să aibă cel puțin 30 de caractere.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await api.post('/auth/teacher-request', { message });
+      setRequest(res.data);
+      setMessage('');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Eroare la trimitere');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) return <p>Se încarcă...</p>;
+
+  // Deja verificat
+  if (user.isTeacher) {
+    return (
+      <div style={sectionStyle(darkMode)}>
+        <h2 style={sectionTitleStyle(darkMode)}>✓ Profesor verificat</h2>
+        <p style={mutedStyle(darkMode)}>
+          Contul tău are statut de profesor verificat. Notițele tale apar cu badge ✓ verde
+          lângă username. Mulțumim că contribui la platformă.
+        </p>
+        {user.teacherVerifiedAt && (
+          <p style={{ fontSize: 13, color: darkMode ? '#a89bc4' : '#666' }}>
+            Verificat din: {new Date(user.teacherVerifiedAt).toLocaleDateString('ro-RO')}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // Are cerere pending sau rejected
+  const statusLabels = {
+    PENDING:  { text: '⏳ În așteptare', color: '#f59e0b' },
+    REJECTED: { text: '❌ Respinsă',     color: '#dc2626' },
+    APPROVED: { text: '✅ Aprobată',     color: '#16a34a' },
+  };
+
+  if (request && request.status === 'PENDING') {
+    return (
+      <div style={sectionStyle(darkMode)}>
+        <h2 style={sectionTitleStyle(darkMode)}>Cerere profesor</h2>
+        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.4)', marginBottom: 12 }}>
+          <strong style={{ color: statusLabels.PENDING.color }}>{statusLabels.PENDING.text}</strong>
+          <p style={{ margin: '6px 0 0', fontSize: 13, color: darkMode ? '#d4c8ff' : '#222' }}>
+            Cererea ta este în analiza head admin-ului. Vei vedea răspunsul aici când e procesată.
+          </p>
+        </div>
+        <div style={{ fontSize: 12, color: darkMode ? '#867aa3' : '#888', marginBottom: 6 }}>Mesajul trimis:</div>
+        <p style={{ whiteSpace: 'pre-wrap', fontSize: 14, color: darkMode ? '#d4c8ff' : '#222' }}>{request.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={sectionStyle(darkMode)}>
+      <h2 style={sectionTitleStyle(darkMode)}>Cere statut de profesor</h2>
+      <p style={mutedStyle(darkMode)}>
+        Dacă ești profesor, poți cere un badge ✓ vizibil pe notițele tale. Conturi cu emailuri
+        oficiale (de tipul <code>.edu</code>) sunt verificate automat la înregistrare.
+        Pentru restul, completează formularul de mai jos și descrie școala unde predai, materia,
+        și orice altă informație care ajută la verificare.
+      </p>
+
+      {request && request.status === 'REJECTED' && (
+        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)', marginBottom: 12 }}>
+          <strong style={{ color: statusLabels.REJECTED.color }}>Cererea precedentă a fost respinsă.</strong>
+          {request.adminResponse && (
+            <p style={{ margin: '6px 0 0', fontSize: 13 }}>Motiv: {request.adminResponse}</p>
+          )}
+          <p style={{ margin: '6px 0 0', fontSize: 12, color: darkMode ? '#a89bc4' : '#666' }}>
+            Poți trimite o nouă cerere mai jos.
+          </p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <textarea
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="Descrie școala/instituția unde predai, materia, ani de experiență, eventual un link spre o pagină oficială unde apari..."
+          rows={6}
+          minLength={30}
+          maxLength={3000}
+          required
+          style={{ ...inputStyle(darkMode), minHeight: 120, resize: 'vertical', marginBottom: 8 }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#666' }}>{message.length} / 3000</span>
+          {error && <span style={{ color: '#dc2626', fontSize: 13 }}>{error}</span>}
+        </div>
+        <SaveBtn onClick={handleSubmit} saving={submitting} label="Trimite cererea" />
+      </form>
+    </div>
+  );
+}
+
+// ── Componente reutilizabile ─────────────────────────────────────────────────
+function TabBtn({ active, onClick, label, danger }) {
+  const { darkMode } = useAuth();
+  const dangerActive   = darkMode ? '#ff4444' : '#dc2626';
+  const dangerInactive = darkMode ? '#ff6666' : '#ef4444';
+  const style = active
+    ? (danger
+        ? { ...activeTabStyle(darkMode), color: dangerActive, borderBottomColor: dangerActive }
+        : activeTabStyle(darkMode))
+    : (danger
+        ? { ...inactiveTabStyle(darkMode), color: dangerInactive }
+        : inactiveTabStyle(darkMode));
+  return <button onClick={onClick} style={style}>{label}</button>;
+}
+
+function Field({ label, ...rest }) {
+  const { darkMode } = useAuth();
+  return (
+    <div style={formGroupStyle}>
+      <label style={labelStyle(darkMode)}>{label}</label>
+      <input style={inputStyle(darkMode)} {...rest} />
+    </div>
+  );
+}
+
+function Toggle({ checked, onChange, title, desc }) {
+  const { darkMode } = useAuth();
+  return (
+    <label style={{
+      display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px',
+      borderRadius: 8, cursor: 'pointer', marginBottom: 10,
+      border: darkMode ? '1px solid rgba(100, 60, 160, 0.2)' : '1px solid rgba(244, 114, 182, 0.25)',
+      background: checked
+        ? (darkMode ? 'rgba(120, 40, 200, 0.08)' : 'rgba(244, 114, 182, 0.1)')
+        : 'transparent',
+      transition: 'background 0.2s ease, border-color 0.2s ease',
+    }}>
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)}
+        style={{ accentColor: darkMode ? '#a855f7' : '#ec4899', marginTop: 3 }} />
+      <div>
+        <strong style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>{title}</strong>
+        <span style={{ display: 'block', fontSize: 13, color: darkMode ? '#999' : '#666', marginTop: 2 }}>{desc}</span>
+      </div>
+    </label>
+  );
+}
+
+function SaveBtn({ onClick, saving, saved, label }) {
+  const { darkMode } = useAuth();
+  return (
+    <button onClick={onClick} disabled={saving} style={saving ? { ...btnStyle(darkMode), opacity: 0.6 } : btnStyle(darkMode)}>
+      {saving ? 'Se salvează...' : saved ? '✓ Salvat!' : label}
+    </button>
+  );
+}
+
+// ── Stiluri ──────────────────────────────────────────────────────────────────
+const tabsStyle = (darkMode) => ({
+  display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap',
+  borderBottom: darkMode ? '1px solid rgba(100, 60, 160, 0.2)' : '1px solid rgba(244, 114, 182, 0.25)',
+});
+const activeTabStyle = (darkMode) => ({
+  padding: '10px 16px', background: 'transparent', border: 'none',
+  borderBottom: darkMode ? '2px solid rgba(168, 85, 247, 0.8)' : '2px solid #be185d',
+  color: darkMode ? '#a855f7' : '#be185d',
+  cursor: 'pointer', fontSize: 14, fontWeight: 600,
+});
+const inactiveTabStyle = (darkMode) => ({
+  padding: '10px 16px', background: 'transparent', border: 'none',
   borderBottom: '2px solid transparent',
-  color: '#666',
-  cursor: 'pointer',
-  fontSize: 14,
+  color: darkMode ? '#666' : '#888',
+  cursor: 'pointer', fontSize: 14,
+});
+const sectionStyle = (darkMode) => ({
+  border: darkMode ? '1px solid rgba(120, 60, 200, 0.25)' : '1px solid rgba(244, 114, 182, 0.3)',
+  borderRadius: 12, padding: 24,
+  background: darkMode ? 'rgba(20, 10, 40, 0.6)' : 'rgba(255, 255, 255, 0.7)',
+  transition: 'background 0.4s ease, border-color 0.4s ease',
+});
+const sectionTitleStyle = (darkMode) => ({
+  marginBottom: 12, fontSize: 18,
+  color: darkMode ? '#e8e0ff' : '#1a1a1a',
+});
+const mutedStyle = (darkMode) => ({
+  marginBottom: 20, fontSize: 14,
+  color: darkMode ? '#aaa' : '#666',
+});
+const formGroupStyle = { marginBottom: 16 };
+const labelStyle = (darkMode) => ({
+  display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 6,
+  color: darkMode ? '#d0c8e8' : '#222',
+});
+const inputStyle = (darkMode) => ({
+  display: 'block', width: '100%', padding: 10, boxSizing: 'border-box',
+  background: darkMode ? 'rgba(0, 0, 0, 0.3)' : '#fff',
+  border: darkMode ? '1px solid rgba(120, 60, 200, 0.25)' : '1px solid rgba(244, 114, 182, 0.4)',
+  color: darkMode ? '#e8e0ff' : '#222',
+  borderRadius: 6, fontSize: 14,
+  transition: 'background 0.4s ease, border-color 0.4s ease, color 0.4s ease',
+});
+const warnBoxStyle = {
+  ...formGroupStyle, marginTop: 8, padding: '12px 14px', borderRadius: 8,
+  border: '1px solid rgba(251, 191, 36, 0.4)', background: 'rgba(251, 191, 36, 0.07)',
 };
-
-const sectionStyle = {
-  border: '1px solid rgba(120, 60, 200, 0.25)',
-  borderRadius: 12,
-  padding: 24,
-  background: 'rgba(20, 10, 40, 0.6)',
-};
-
-const sectionTitleStyle = {
-  marginBottom: 12,
-  fontSize: 18,
-  color: '#e8e0ff',
-};
-
-const formGroupStyle = {
-  marginBottom: 16,
-};
-
-const labelStyle = {
-  display: 'block',
-  fontSize: 14,
-  fontWeight: 500,
-  marginBottom: 6,
-  color: '#d0c8e8',
-};
-
-const inputStyle = {
-  display: 'block',
-  width: '100%',
-  padding: 10,
-  boxSizing: 'border-box',
-  background: 'rgba(0, 0, 0, 0.3)',
-  border: '1px solid rgba(120, 60, 200, 0.25)',
-  borderRadius: 6,
-  color: '#e8e0ff',
-  fontSize: 14,
-};
-
-const optionStyle = (active) => ({
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: 12,
-  padding: '12px 16px',
-  borderRadius: 8,
-  border: `1px solid ${active ? 'rgba(168, 85, 247, 0.6)' : 'rgba(100, 60, 160, 0.2)'}`,
-  background: active ? 'rgba(120, 40, 200, 0.15)' : 'transparent',
-  cursor: 'pointer',
-  transition: 'all 0.15s',
+const errorStyle = { color: '#ff6666', fontSize: 14, marginTop: 8, marginBottom: 0 };
+const btnStyle = (darkMode) => ({
+  marginTop: 20, padding: '10px 24px',
+  background: darkMode ? 'rgba(120, 40, 200, 0.7)' : 'linear-gradient(135deg, #f472b6 0%, #22d3ee 100%)',
+  color: 'white',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.5)' : 'none',
+  borderRadius: 6, cursor: 'pointer', fontSize: 15, fontWeight: 600,
+  transition: 'background 0.4s ease, border-color 0.4s ease',
 });
 
-const previewBoxStyle = {
-  marginTop: 20,
-  padding: '14px 16px',
-  borderRadius: 8,
-  background: 'rgba(0, 0, 0, 0.3)',
-  border: '1px solid rgba(100, 60, 160, 0.2)',
-};
-
-const btnStyle = {
-  marginTop: 20,
+// Danger zone — mai rosu in light mode
+const dangerSectionStyle = (darkMode) => ({
+  border: darkMode ? '1px solid rgba(255, 68, 68, 0.2)' : '1px solid rgba(220, 38, 38, 0.5)',
+  borderRadius: 12, padding: 24,
+  background: darkMode ? 'rgba(255, 20, 20, 0.08)' : 'rgba(254, 226, 226, 0.8)',
+  transition: 'background 0.4s ease, border-color 0.4s ease',
+});
+const dangerTitleStyle = (darkMode) => ({
+  marginBottom: 12, fontSize: 18,
+  color: darkMode ? '#ff6666' : '#b91c1c',
+});
+const dangerWarnStyle = (darkMode) => ({
+  marginBottom: 20, fontSize: 14,
+  color: darkMode ? '#ff9999' : '#991b1b',
+});
+const dangerBtnStyle = (darkMode, deleting) => ({
   padding: '10px 24px',
-  background: 'rgba(120, 40, 200, 0.7)',
+  background: deleting
+    ? (darkMode ? 'rgba(255, 68, 68, 0.5)' : 'rgba(220, 38, 38, 0.5)')
+    : (darkMode ? 'rgba(255, 68, 68, 0.8)' : '#dc2626'),
   color: 'white',
-  border: '1px solid rgba(168, 85, 247, 0.5)',
+  border: darkMode ? '1px solid #ff4444' : '1px solid #b91c1c',
   borderRadius: 6,
-  cursor: 'pointer',
-  fontSize: 15,
-  fontWeight: 600,
-};
+  cursor: deleting ? 'default' : 'pointer',
+  fontSize: 15, fontWeight: 600,
+});

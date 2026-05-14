@@ -11,7 +11,10 @@ export function errorHandler(err, req, res, next) {
 
   // Erorile noastre custom (au statusCode setat).
   if (err.statusCode) {
-    return res.status(err.statusCode).json({ error: err.message });
+    const body = { error: err.message };
+    if (err.code) body.code = err.code;
+    if (err.extra) Object.assign(body, err.extra);
+    return res.status(err.statusCode).json(body);
   }
 
   // Prisma: violare unique constraint (ex: email deja folosit).
@@ -32,8 +35,10 @@ export function errorHandler(err, req, res, next) {
 // Helper pentru aruncat erori cu status code.
 // Folosește: throw new AppError('Mesaj', 400);
 export class AppError extends Error {
-  constructor(message, statusCode = 400) {
+  constructor(message, statusCode = 400, { code, extra } = {}) {
     super(message);
     this.statusCode = statusCode;
+    if (code) this.code = code;
+    if (extra) this.extra = extra;
   }
 }

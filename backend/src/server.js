@@ -11,8 +11,10 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes.js';
 import notesRoutes from './routes/notes.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import requestsRoutes from './routes/requests.routes.js';
 import { getLeaderboard } from './controllers/leaderboard.controller.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { sweepBannedAccounts, sweepScheduledNoteDeletions } from './services/ban.service.js';
 
 dotenv.config(); // încarcă .env în process.env
 
@@ -38,6 +40,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/requests', requestsRoutes);
 app.get('/api/leaderboard', getLeaderboard);
 
 // 404 pentru orice rută API negăsită
@@ -52,4 +55,19 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✓ Server pornit pe http://localhost:${PORT}`);
   console.log(`✓ Health check: http://localhost:${PORT}/api/health`);
+
+  // Ștergere conturi banate cu termen expirat. Rulează la pornire + zilnic.
+  // Conturile cu apel activ (PENDING/OPEN) sunt sărite de sweeper.
+  const runSweepers = async () => {
+    try {
+      const a = await sweepBannedAccounts();
+      const b = await sweepScheduledNoteDeletions();
+      if (a.deleted > 0) console.log(`[Sweeper] deleted ${a.deleted} banned accounts`);
+      if (b.deleted > 0) console.log(`[Sweeper] deleted ${b.deleted} scheduled notes`);
+    } catch (err) {
+      console.error('[Sweeper] failed:', err.message);
+    }
+  };
+  runSweepers();
+  setInterval(runSweepers, 60 * 60 * 1000); // o dată pe oră
 });
