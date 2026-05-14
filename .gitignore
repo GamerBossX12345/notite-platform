@@ -28,3 +28,4 @@ backend/uploads/
 
 # Prisma
 # (păstrăm migrațiile în git, nu le ignorăm)
+.claude/settings.local.json
