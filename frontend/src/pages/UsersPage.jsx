@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
+import { useAuth } from '../hooks/useAuth.js';
 import { useFlipAnimation } from '../hooks/useFlipAnimation.js';
 
 const SORT_OPTIONS = [
@@ -22,6 +23,7 @@ const MEDAL_STYLES = [
 ];
 
 export default function UsersPage() {
+  const { darkMode } = useAuth();
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState('reputation');
   const [showAdmins, setShowAdmins] = useState(false);
@@ -135,11 +137,11 @@ export default function UsersPage() {
 
           {data.totalPages > 1 && (
             <div style={paginationStyle}>
-              <button onClick={() => setPage(p => p - 1)} disabled={page <= 1} style={pageBtnStyle}>‹ Anterior</button>
+              <button onClick={() => setPage(p => p - 1)} disabled={page <= 1} style={pageBtnStyle(darkMode)}>‹ Anterior</button>
               <span style={{ padding: '6px 12px', color: '#888', fontSize: 14 }}>
                 Pagina {page} din {data.totalPages}
               </span>
-              <button onClick={() => setPage(p => p + 1)} disabled={page >= data.totalPages} style={pageBtnStyle}>Următor ›</button>
+              <button onClick={() => setPage(p => p + 1)} disabled={page >= data.totalPages} style={pageBtnStyle(darkMode)}>Următor ›</button>
             </div>
           )}
         </>

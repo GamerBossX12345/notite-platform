@@ -1,12 +1,13 @@
 // Layout-ul comun: navbar sus, conținutul paginii dedesubt.
 // <Outlet /> e locul unde React Router pune componenta paginii curente.
 
+import { createPortal } from 'react-dom';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function Layout() {
-  const { user, logout, darkMode, updateDarkMode, sidebarOpen, setSidebarOpen, mainMenuOpen, setMainMenuOpen } = useAuth();
+  const { user, logout, darkMode, updateDarkMode, sidebarOpen, setSidebarOpen, mainMenuOpen, setMainMenuOpen, leaderboardHidden, setLeaderboardHidden } = useAuth();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -33,18 +34,6 @@ export default function Layout() {
 
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'HEAD_ADMIN';
 
-  const orb1 = darkMode
-    ? { ...orbBase, width: 340, height: 240, top: '30%', left: '5%', background: 'rgba(110, 30, 220, 0.55)', animation: 'orbPulse1 7s ease-in-out infinite' }
-    : { ...orbBase, width: 340, height: 240, top: '30%', left: '5%', background: 'rgba(255, 100, 180, 0.30)', animation: 'orbPulse1 7s ease-in-out infinite' };
-
-  const orb2 = darkMode
-    ? { ...orbBase, width: 280, height: 200, top: '10%', right: '8%', background: 'rgba(30, 60, 210, 0.5)', animation: 'orbPulse2 10s ease-in-out infinite' }
-    : { ...orbBase, width: 280, height: 200, top: '10%', right: '8%', background: 'rgba(0, 200, 210, 0.25)', animation: 'orbPulse2 10s ease-in-out infinite' };
-
-  const orb3 = darkMode
-    ? { ...orbBase, width: 260, height: 200, bottom: '15%', right: '20%', background: 'rgba(80, 10, 180, 0.45)', animation: 'orbPulse3 8s ease-in-out infinite' }
-    : { ...orbBase, width: 260, height: 200, bottom: '15%', right: '20%', background: 'rgba(255, 80, 160, 0.22)', animation: 'orbPulse3 8s ease-in-out infinite' };
-
   const btnStyle = darkMode
     ? { padding: '6px 12px', cursor: 'pointer', border: '1px solid rgba(150, 80, 255, 0.4)', background: 'rgba(80, 20, 160, 0.3)', borderRadius: 4, color: '#c9a8ff' }
     : { padding: '6px 12px', cursor: 'pointer', border: '1px solid rgba(244, 114, 182, 0.4)', background: 'rgba(244, 114, 182, 0.12)', borderRadius: 4, color: '#be185d' };
@@ -55,9 +44,6 @@ export default function Layout() {
 
   return (
     <div>
-      <div style={orb1} />
-      <div style={orb2} />
-      <div style={orb3} />
       <nav style={navStyle}>
         {user && (
           <button
@@ -162,9 +148,26 @@ export default function Layout() {
         </>
       )}
 
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
+      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 96px', position: 'relative', zIndex: 2 }}>
         <Outlet />
       </main>
+      {createPortal(
+        <footer style={footerStyle(darkMode)}>
+          <div style={{ flex: 1 }} />
+          {user && (
+            <button
+              onClick={() => setLeaderboardHidden(!leaderboardHidden)}
+              title={leaderboardHidden ? 'Afișează leaderboardul' : 'Ascunde leaderboardul'}
+              style={leaderboardHidden
+                ? { ...themeToggleStyle, border: '1px solid rgba(220, 38, 38, 0.55)', background: 'rgba(220, 38, 38, 0.25)', color: '#fca5a5' }
+                : toggleStyle}
+            >
+              🏆
+            </button>
+          )}
+        </footer>,
+        document.body
+      )}
     </div>
   );
 }
@@ -180,14 +183,6 @@ function MenuItem({ icon, label, onClick, color }) {
 
 // TODO: mută stilurile într-un fișier .css sau folosește o bibliotecă (ex: CSS modules).
 // Inline styles sunt OK pentru skeleton, dar prost pentru proiect mare.
-const orbBase = {
-  position: 'fixed',
-  borderRadius: '50%',
-  pointerEvents: 'none',
-  zIndex: 0,
-  filter: 'blur(60px)',
-};
-
 const navStyle = {
   display: 'flex',
   alignItems: 'center',
@@ -200,6 +195,26 @@ const navStyle = {
   top: 0,
   zIndex: 100,
 };
+
+const footerStyle = (darkMode) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 16,
+  padding: '12px 24px',
+  borderTop: darkMode
+    ? '1px solid rgba(120, 60, 200, 0.3)'
+    : '1px solid rgba(244, 114, 182, 0.35)',
+  background: darkMode
+    ? 'rgba(20, 8, 50, 0.5)'
+    : 'rgba(255, 240, 248, 0.7)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  position: 'fixed',
+  left: 0,
+  right: 0,
+  bottom: 0,
+  zIndex: 100,
+});
 
 const linkStyle = {
   textDecoration: 'none',

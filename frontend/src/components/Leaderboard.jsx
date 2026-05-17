@@ -12,14 +12,15 @@ const PODIUM_STYLES = [
 ];
 
 export default function Leaderboard({ featuredAuthor }) {
-  const { darkMode } = useAuth();
+  const { darkMode, leaderboardHidden } = useAuth();
   const [entries, setEntries] = useState([]);
 
   useEffect(() => {
+    if (leaderboardHidden) return;
     api.get('/leaderboard', { params: { limit: 10 } })
       .then(res => setEntries(res.data))
       .catch(() => {});
-  }, []);
+  }, [leaderboardHidden]);
 
   let featured = null;
   if (featuredAuthor) {
@@ -37,8 +38,15 @@ export default function Leaderboard({ featuredAuthor }) {
 
   if (entries.length === 0 && !featured) return null;
 
+  const wrapperStyle = {
+    ...containerStyle(darkMode),
+    opacity: leaderboardHidden ? 0 : 1,
+    pointerEvents: leaderboardHidden ? 'none' : 'auto',
+    transition: 'opacity 0.3s ease, background 0.4s ease, color 0.4s ease, border-color 0.4s ease',
+  };
+
   return (
-    <div style={containerStyle(darkMode)}>
+    <div style={wrapperStyle} aria-hidden={leaderboardHidden}>
       {featured && (
         <>
           <h4 style={sectionLabelStyle}>Autorul:</h4>
@@ -94,7 +102,7 @@ const containerStyle = (darkMode) => ({
   top: 76,
   right: 20,
   width: 220,
-  zIndex: 50,
+  zIndex: 1,
   border: '1px solid rgba(120, 60, 200, 0.25)',
   borderRadius: 10,
   padding: 14,

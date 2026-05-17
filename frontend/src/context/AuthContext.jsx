@@ -16,6 +16,13 @@ export function AuthProvider({ children }) {
   const [darkMode, setDarkMode] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mainMenuOpen, setMainMenuOpen] = useState(false);
+  const [leaderboardHidden, setLeaderboardHiddenState] = useState(() => {
+    try { return localStorage.getItem('leaderboardHidden') === '1'; } catch { return false; }
+  });
+  function setLeaderboardHidden(value) {
+    setLeaderboardHiddenState(value);
+    try { localStorage.setItem('leaderboardHidden', value ? '1' : '0'); } catch { /* quota */ }
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -102,7 +109,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshMe, darkMode, updateDarkMode, dismissWarning, sidebarOpen, setSidebarOpen, mainMenuOpen, setMainMenuOpen }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshMe, darkMode, updateDarkMode, dismissWarning, sidebarOpen, setSidebarOpen, mainMenuOpen, setMainMenuOpen, leaderboardHidden, setLeaderboardHidden }}>
       {children}
     </AuthContext.Provider>
   );

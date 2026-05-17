@@ -21,6 +21,7 @@ function fileType(url) {
 }
 
 function FileAttachment({ fileUrl }) {
+  const { darkMode } = useAuth();
   const fullUrl = BACKEND_URL + fileUrl;
   const kind    = fileType(fileUrl);
   const name    = fileUrl.split('/').pop();
@@ -41,16 +42,48 @@ function FileAttachment({ fileUrl }) {
   }
 
   if (kind === 'pdf') {
+    const cardStyle = {
+      borderRadius: 14,
+      overflow: 'hidden',
+      border: darkMode ? '1px solid rgba(168, 85, 247, 0.35)' : '1px solid rgba(0, 0, 0, 0.08)',
+      background: darkMode ? 'rgba(20, 8, 50, 0.6)' : '#ffffff',
+      boxShadow: darkMode
+        ? '0 8px 32px rgba(80, 20, 160, 0.35), 0 2px 8px rgba(0,0,0,0.3)'
+        : '0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0,0,0,0.04)',
+      backdropFilter: 'blur(10px)',
+    };
+    const footerStyle = {
+      display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8,
+      padding: '10px 14px',
+      borderTop: darkMode ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid rgba(0, 0, 0, 0.06)',
+      background: darkMode
+        ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.18) 0%, rgba(59, 130, 246, 0.12) 100%)'
+        : 'linear-gradient(135deg, rgba(244, 114, 182, 0.08) 0%, rgba(34, 211, 238, 0.08) 100%)',
+      color: darkMode ? '#e8e0ff' : '#1a1a1a',
+    };
+    const pillBtn = {
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '5px 11px', borderRadius: 999,
+      fontSize: 12, fontWeight: 600, textDecoration: 'none',
+      border: darkMode ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid rgba(0, 0, 0, 0.1)',
+      background: darkMode ? 'rgba(80, 20, 160, 0.35)' : 'rgba(255, 255, 255, 0.8)',
+      color: darkMode ? '#e8e0ff' : '#374151',
+    };
     return (
-      <div>
+      <div style={cardStyle}>
         <iframe
-          src={fullUrl}
+          src={`${fullUrl}#view=FitH&toolbar=1`}
           title="PDF atașat"
-          style={{ width: '100%', height: 600, border: '1px solid #e0e0e0', borderRadius: 8, display: 'block' }}
+          style={{ width: '100%', height: 720, border: 'none', display: 'block', background: darkMode ? '#1a0b2e' : '#f5f5f5' }}
         />
-        <a href={fullUrl} download={name} style={{ fontSize: 13, color: '#0066cc', marginTop: 8, display: 'inline-block' }}>
-          Descarcă PDF
-        </a>
+        <div style={footerStyle}>
+          <a href={fullUrl} target="_blank" rel="noopener noreferrer" style={pillBtn} title="Deschide în filă nouă">
+            ↗ Deschide
+          </a>
+          <a href={fullUrl} download={name} style={pillBtn} title="Descarcă PDF">
+            ⬇ Descarcă
+          </a>
+        </div>
       </div>
     );
   }

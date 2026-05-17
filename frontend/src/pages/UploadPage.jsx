@@ -272,13 +272,13 @@ export default function UploadPage() {
 
         <div style={{ marginBottom: 16 }}>
           <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>
-            Tag-uri <span style={{ color: '#888', fontWeight: 400 }}>(opțional — ex: bac, examen, definiții)</span>
+            Tag-uri <span style={{ color: '#888', fontWeight: 400 }}>(opțional — ex: bac, examen, definiții, etc.)</span>
           </span>
           <TagInput value={tags} onChange={setTags} max={8} />
         </div>
 
         <label style={labelStyle}>
-          Conținut <span style={{ color: '#888', fontWeight: 400 }}>(suport KaTeX pentru formule)</span>
+          Conținut
           <TipTapEditor editor={editor} />
         </label>
 
@@ -294,15 +294,15 @@ export default function UploadPage() {
               <span style={{ color: '#0066cc', cursor: 'pointer' }}>Alege fișier</span>
               <span style={{ color: '#999', marginLeft: 8 }}>sau trage aici</span>
             </label>
+          ) : file.type === 'application/pdf' ? (
+            <PdfPreviewCard file={file} onRemove={removeFile} darkMode={darkMode} />
           ) : (
             <div style={filePreviewContainerStyle}>
               {filePreview ? (
                 <img src={filePreview} alt="previzualizare"
                   style={{ maxHeight: 200, maxWidth: '100%', borderRadius: 6, display: 'block', marginBottom: 8 }} />
               ) : (
-                <div style={{ fontSize: 32, marginBottom: 4 }}>
-                  {file.name.endsWith('.pdf') ? '📄' : '📎'}
-                </div>
+                <div style={{ fontSize: 32, marginBottom: 4 }}>📎</div>
               )}
               <p style={{ margin: 0, fontSize: 14, color: '#333' }}>{file.name}</p>
               <p style={{ margin: '2px 0 8px', fontSize: 12, color: '#888' }}>
@@ -340,6 +340,64 @@ export default function UploadPage() {
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function PdfPreviewCard({ file, onRemove, darkMode }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
+
+  const card = {
+    borderRadius: 14,
+    overflow: 'hidden',
+    border: darkMode ? '1px solid rgba(168, 85, 247, 0.35)' : '1px solid rgba(0, 0, 0, 0.08)',
+    background: darkMode ? 'rgba(20, 8, 50, 0.6)' : '#ffffff',
+    boxShadow: darkMode
+      ? '0 8px 32px rgba(80, 20, 160, 0.35), 0 2px 8px rgba(0,0,0,0.3)'
+      : '0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0,0,0,0.04)',
+  };
+  const header = {
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 14px',
+    borderBottom: darkMode ? '1px solid rgba(168, 85, 247, 0.25)' : '1px solid rgba(0, 0, 0, 0.06)',
+    background: darkMode
+      ? 'linear-gradient(135deg, rgba(168, 85, 247, 0.18) 0%, rgba(59, 130, 246, 0.12) 100%)'
+      : 'linear-gradient(135deg, rgba(244, 114, 182, 0.08) 0%, rgba(34, 211, 238, 0.08) 100%)',
+    color: darkMode ? '#e8e0ff' : '#1a1a1a',
+  };
+  const removeBtn = {
+    padding: '5px 11px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+    border: darkMode ? '1px solid rgba(220, 38, 38, 0.5)' : '1px solid rgba(220, 38, 38, 0.4)',
+    background: darkMode ? 'rgba(220, 38, 38, 0.15)' : 'rgba(254, 226, 226, 0.8)',
+    color: darkMode ? '#fca5a5' : '#b91c1c',
+  };
+  return (
+    <div style={card}>
+      <div style={header}>
+        <span style={{ fontSize: 20 }}>📄</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontWeight: 600, fontSize: 14,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>{file.name}</div>
+          <div style={{ fontSize: 11, opacity: 0.7 }}>
+            {(file.size / 1024 / 1024).toFixed(2)} MB
+          </div>
+        </div>
+        <button type="button" onClick={onRemove} style={removeBtn}>Elimină</button>
+      </div>
+      {url && (
+        <iframe
+          src={`${url}#view=FitH&toolbar=1`}
+          title="Previzualizare PDF"
+          style={{ width: '100%', height: 480, border: 'none', display: 'block', background: darkMode ? '#1a0b2e' : '#f5f5f5' }}
+        />
+      )}
     </div>
   );
 }

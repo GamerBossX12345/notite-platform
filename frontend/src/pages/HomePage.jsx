@@ -446,13 +446,13 @@ export default function HomePage() {
 
                   {result.totalPages > 1 && (
                     <div style={paginationStyle}>
-                      <button onClick={() => setPage(page - 1)} disabled={page <= 1} style={pageButtonStyle}>
+                      <button onClick={() => setPage(page - 1)} disabled={page <= 1} style={pageButtonStyle(darkMode)}>
                         ‹ Anterior
                       </button>
                       <span style={{ padding: '6px 12px', color: '#888', fontSize: 14 }}>
                         Pagina {page} din {result.totalPages}
                       </span>
-                      <button onClick={() => setPage(page + 1)} disabled={page >= result.totalPages} style={pageButtonStyle}>
+                      <button onClick={() => setPage(page + 1)} disabled={page >= result.totalPages} style={pageButtonStyle(darkMode)}>
                         Următor ›
                       </button>
                     </div>
@@ -619,10 +619,15 @@ const recentRemoveBtnStyle = (darkMode) => ({
   padding: '0 4px',
   lineHeight: 1,
 });
-const pageButtonStyle = {
-  padding: '6px 14px', border: '1px solid #ccc', borderRadius: 4,
-  background: 'transparent', cursor: 'pointer',
-};
+const pageButtonStyle = (darkMode) => ({
+  padding: '6px 14px',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid rgba(244, 114, 182, 0.5)',
+  background: darkMode ? 'transparent' : 'rgba(255, 255, 255, 0.6)',
+  color: darkMode ? '#e8e0ff' : '#be185d',
+  borderRadius: 4,
+  cursor: 'pointer',
+  fontWeight: 500,
+});
 
 // Sidebar slide-in
 const sidebarOverlayStyle = {
