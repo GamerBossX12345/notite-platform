@@ -6,8 +6,20 @@ import * as auditController from '../controllers/audit.controller.js';
 import * as teacherController from '../controllers/teacher.controller.js';
 import * as flashcardsController from '../controllers/flashcards.controller.js';
 import { requireAuth } from '../middleware/auth.js';
+import { upload } from '../middleware/upload.js';
 
 const router = Router();
+
+// Wrapper pentru upload care întoarce JSON 400 în loc de 500 la erori multer.
+function withOptionalUpload(req, res, next) {
+  upload.single('document')(req, res, (err) => {
+    if (!err) return next();
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Fișierul depășește limita de 20 MB.' });
+    }
+    return res.status(400).json({ error: err.message });
+  });
+}
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
@@ -16,8 +28,9 @@ router.get('/verify-device', authController.verifyDeviceLogin);
 router.get('/me', requireAuth, authController.me);
 router.get('/me/saved', requireAuth, savedController.listMine);
 router.get('/me/audit-log', requireAuth, auditController.listMine);
-router.post('/teacher-request',   requireAuth, teacherController.submitRequest);
+router.post('/teacher-request',   requireAuth, withOptionalUpload, teacherController.submitRequest);
 router.get('/teacher-request/me', requireAuth, teacherController.getMyRequest);
+router.post('/teacher-invite/redeem', requireAuth, teacherController.redeemInviteCode);
 
 // Flashcards — manage personal
 router.get('/me/flashcards',              requireAuth, flashcardsController.listMine);

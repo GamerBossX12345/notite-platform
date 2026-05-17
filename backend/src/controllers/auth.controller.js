@@ -42,7 +42,7 @@ export async function me(req, res, next) {
         notifyOnRating: true, notifyOnComment: true, notifyOnReport: true,
         defaultSubject: true, defaultGradeLevel: true,
         darkMode: true,
-        isTeacher: true, teacherVerifiedAt: true,
+        isTeacher: true, teacherVerifiedAt: true, teacherVerificationMethod: true,
       },
     });
     if (!user) throw new AppError('Utilizator inexistent', 404);

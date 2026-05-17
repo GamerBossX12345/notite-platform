@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { api } from '../api/client.js';
@@ -196,18 +196,20 @@ export default function SettingsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 600 }}>
+    <div style={{ maxWidth: 900 }}>
       <h1 style={{ fontSize: 28, marginBottom: 24 }}>Setări cont</h1>
 
-      <div style={tabsStyle(darkMode)}>
-        <TabBtn active={tab === 'profile'}      onClick={() => setTab('profile')}      label="Profil" />
-        <TabBtn active={tab === 'privacy'}      onClick={() => setTab('privacy')}      label="Confidențialitate" />
-        <TabBtn active={tab === 'notifications'} onClick={() => setTab('notifications')} label="Notificări"         />
-        <TabBtn active={tab === 'homepage'}     onClick={() => setTab('homepage')}     label="Homepage"          />
-        <TabBtn active={tab === 'teacher'}      onClick={() => setTab('teacher')}      label="Profesor"          />
-        <TabBtn active={tab === 'password'}     onClick={() => setTab('password')}     label="Parolă" />
-        <TabBtn active={tab === 'danger'}       onClick={() => setTab('danger')}       label="Pericol" danger />
-      </div>
+      <div style={layoutStyle}>
+        <nav style={tabsStyle(darkMode)}>
+          <TabBtn active={tab === 'profile'}      onClick={() => setTab('profile')}      label="Profil" />
+          <TabBtn active={tab === 'privacy'}      onClick={() => setTab('privacy')}      label="Confidențialitate" />
+          <TabBtn active={tab === 'notifications'} onClick={() => setTab('notifications')} label="Notificări"         />
+          <TabBtn active={tab === 'homepage'}     onClick={() => setTab('homepage')}     label="Homepage"          />
+          <TabBtn active={tab === 'teacher'}      onClick={() => setTab('teacher')}      label="Profesor"          />
+          <TabBtn active={tab === 'password'}     onClick={() => setTab('password')}     label="Parolă" />
+          <TabBtn active={tab === 'danger'}       onClick={() => setTab('danger')}       label="Pericol" danger />
+        </nav>
+        <div style={{ flex: 1, minWidth: 0 }}>
 
       {/* PROFIL */}
       {tab === 'profile' && (
@@ -339,6 +341,7 @@ export default function SettingsPage() {
         <TeacherTab darkMode={darkMode} user={user} />
       )}
 
+
       {/* PAROLĂ */}
       {tab === 'password' && (
         <div style={sectionStyle(darkMode)}>
@@ -391,14 +394,28 @@ export default function SettingsPage() {
           </button>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
 
 function TeacherTab({ darkMode, user }) {
+  const { refreshMe } = useAuth();
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState('code'); // 'code' | 'document'
+
+  // Stare pentru cod
+  const [code, setCode] = useState('');
+  const [codeSubmitting, setCodeSubmitting] = useState(false);
+  const [codeError, setCodeError] = useState('');
+  const [codeSuccess, setCodeSuccess] = useState('');
+
+  // Stare pentru cerere cu document
   const [message, setMessage] = useState('');
+  const [docFile, setDocFile] = useState(null);
+  const fileInputRef = useRef(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -409,6 +426,27 @@ function TeacherTab({ darkMode, user }) {
       .finally(() => setLoading(false));
   }, []);
 
+  async function handleRedeemCode(e) {
+    e.preventDefault();
+    setCodeError('');
+    setCodeSuccess('');
+    if (!code.trim()) {
+      setCodeError('Introdu un cod.');
+      return;
+    }
+    setCodeSubmitting(true);
+    try {
+      await api.post('/auth/teacher-invite/redeem', { code: code.trim() });
+      setCodeSuccess('✓ Cont activat ca profesor verificat.');
+      setCode('');
+      if (refreshMe) refreshMe();
+    } catch (err) {
+      setCodeError(err.response?.data?.error || 'Cod invalid');
+    } finally {
+      setCodeSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
@@ -418,9 +456,14 @@ function TeacherTab({ darkMode, user }) {
     }
     setSubmitting(true);
     try {
-      const res = await api.post('/auth/teacher-request', { message });
+      const formData = new FormData();
+      formData.append('message', message);
+      if (docFile) formData.append('document', docFile);
+      const res = await api.post('/auth/teacher-request', formData);
       setRequest(res.data);
       setMessage('');
+      setDocFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError(err.response?.data?.error || 'Eroare la trimitere');
     } finally {
@@ -430,14 +473,22 @@ function TeacherTab({ darkMode, user }) {
 
   if (loading) return <p>Se încarcă...</p>;
 
-  // Deja verificat
   if (user.isTeacher) {
+    const methodLabel = {
+      EMAIL_DOMAIN: 'email instituțional (.edu / .gov.ro / etc.)',
+      INVITE_CODE:  'cod de invitație',
+      DOCUMENT:     'document de identitate aprobat de admin',
+      MANUAL:       'aprobare directă de la head admin',
+    }[user.teacherVerificationMethod] || 'aprobare admin';
     return (
       <div style={sectionStyle(darkMode)}>
         <h2 style={sectionTitleStyle(darkMode)}>✓ Profesor verificat</h2>
         <p style={mutedStyle(darkMode)}>
           Contul tău are statut de profesor verificat. Notițele tale apar cu badge ✓ verde
-          lângă username. Mulțumim că contribui la platformă.
+          lângă username și poți evalua sau corecta notițele altora.
+        </p>
+        <p style={{ fontSize: 13, color: darkMode ? '#a89bc4' : '#666' }}>
+          Metodă: {methodLabel}.
         </p>
         {user.teacherVerifiedAt && (
           <p style={{ fontSize: 13, color: darkMode ? '#a89bc4' : '#666' }}>
@@ -448,7 +499,6 @@ function TeacherTab({ darkMode, user }) {
     );
   }
 
-  // Are cerere pending sau rejected
   const statusLabels = {
     PENDING:  { text: '⏳ În așteptare', color: '#f59e0b' },
     REJECTED: { text: '❌ Respinsă',     color: '#dc2626' },
@@ -467,51 +517,127 @@ function TeacherTab({ darkMode, user }) {
         </div>
         <div style={{ fontSize: 12, color: darkMode ? '#867aa3' : '#888', marginBottom: 6 }}>Mesajul trimis:</div>
         <p style={{ whiteSpace: 'pre-wrap', fontSize: 14, color: darkMode ? '#d4c8ff' : '#222' }}>{request.message}</p>
+        {request.documentUrl && (
+          <p style={{ marginTop: 8, fontSize: 13 }}>
+            📎 <a href={request.documentUrl} target="_blank" rel="noopener noreferrer"
+                 style={{ color: darkMode ? '#c9a8ff' : '#6366f1' }}>
+              Documentul atașat
+            </a>
+          </p>
+        )}
       </div>
     );
   }
 
   return (
     <div style={sectionStyle(darkMode)}>
-      <h2 style={sectionTitleStyle(darkMode)}>Cere statut de profesor</h2>
+      <h2 style={sectionTitleStyle(darkMode)}>Devino profesor verificat</h2>
       <p style={mutedStyle(darkMode)}>
-        Dacă ești profesor, poți cere un badge ✓ vizibil pe notițele tale. Conturi cu emailuri
-        oficiale (de tipul <code>.edu</code>) sunt verificate automat la înregistrare.
-        Pentru restul, completează formularul de mai jos și descrie școala unde predai, materia,
-        și orice altă informație care ajută la verificare.
+        Profesorii verificați pot evalua notițele cu ✓ / ✗, le pot edita pentru a corecta
+        greșeli, și apar cu badge ✓ verde lângă nume. Există trei căi de verificare:
+        emailul instituțional (<code>.edu</code> etc. — automat la înregistrare), un cod de
+        invitație, sau o cerere cu document de identitate.
       </p>
 
-      {request && request.status === 'REJECTED' && (
-        <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)', marginBottom: 12 }}>
-          <strong style={{ color: statusLabels.REJECTED.color }}>Cererea precedentă a fost respinsă.</strong>
-          {request.adminResponse && (
-            <p style={{ margin: '6px 0 0', fontSize: 13 }}>Motiv: {request.adminResponse}</p>
-          )}
-          <p style={{ margin: '6px 0 0', fontSize: 12, color: darkMode ? '#a89bc4' : '#666' }}>
-            Poți trimite o nouă cerere mai jos.
+      {/* Selector între cele două opțiuni */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => setMode('code')}
+                style={modeBtn(mode === 'code', darkMode)}>
+          🔑 Am un cod de invitație
+        </button>
+        <button type="button" onClick={() => setMode('document')}
+                style={modeBtn(mode === 'document', darkMode)}>
+          📄 Trimit o cerere cu document
+        </button>
+      </div>
+
+      {mode === 'code' && (
+        <form onSubmit={handleRedeemCode}>
+          <p style={{ fontSize: 14, color: darkMode ? '#d4c8ff' : '#222', marginBottom: 10 }}>
+            Introdu codul primit de la administratorul platformei. Codurile au format
+            de 12 caractere (litere mari + cifre).
           </p>
-        </div>
+          <input
+            value={code}
+            onChange={e => { setCode(e.target.value.toUpperCase()); setCodeError(''); setCodeSuccess(''); }}
+            placeholder="ABCD-2345-WXYZ"
+            maxLength={32}
+            style={{
+              ...inputStyle(darkMode),
+              fontFamily: 'monospace', letterSpacing: 2, fontSize: 16,
+            }}
+          />
+          {codeError && <p style={errorStyle}>❌ {codeError}</p>}
+          {codeSuccess && <p style={{ color: '#16a34a', fontSize: 14, marginTop: 8 }}>{codeSuccess}</p>}
+          <SaveBtn onClick={handleRedeemCode} saving={codeSubmitting} label="Activează" />
+        </form>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <textarea
-          value={message}
-          onChange={e => setMessage(e.target.value)}
-          placeholder="Descrie școala/instituția unde predai, materia, ani de experiență, eventual un link spre o pagină oficială unde apari..."
-          rows={6}
-          minLength={30}
-          maxLength={3000}
-          required
-          style={{ ...inputStyle(darkMode), minHeight: 120, resize: 'vertical', marginBottom: 8 }}
-        />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#666' }}>{message.length} / 3000</span>
-          {error && <span style={{ color: '#dc2626', fontSize: 13 }}>{error}</span>}
-        </div>
-        <SaveBtn onClick={handleSubmit} saving={submitting} label="Trimite cererea" />
-      </form>
+      {mode === 'document' && (
+        <form onSubmit={handleSubmit}>
+          {request && request.status === 'REJECTED' && (
+            <div style={{ padding: '8px 12px', borderRadius: 6, background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)', marginBottom: 12 }}>
+              <strong style={{ color: statusLabels.REJECTED.color }}>Cererea precedentă a fost respinsă.</strong>
+              {request.adminResponse && (
+                <p style={{ margin: '6px 0 0', fontSize: 13 }}>Motiv: {request.adminResponse}</p>
+              )}
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: darkMode ? '#a89bc4' : '#666' }}>
+                Poți trimite o nouă cerere mai jos.
+              </p>
+            </div>
+          )}
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder="Descrie școala/instituția unde predai, materia, ani de experiență, eventual un link spre o pagină oficială unde apari..."
+            rows={6}
+            minLength={30}
+            maxLength={3000}
+            required
+            style={{ ...inputStyle(darkMode), minHeight: 120, resize: 'vertical', marginBottom: 8 }}
+          />
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ ...labelStyle(darkMode), fontSize: 13 }}>
+              Document (diplomă, legitimație, etc.) — opțional dar recomandat
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={e => setDocFile(e.target.files?.[0] || null)}
+              style={{ display: 'block', fontSize: 13 }}
+            />
+            {docFile && (
+              <p style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#666', marginTop: 4 }}>
+                📎 {docFile.name}
+              </p>
+            )}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#666' }}>{message.length} / 3000</span>
+            {error && <span style={{ color: '#dc2626', fontSize: 13 }}>{error}</span>}
+          </div>
+          <SaveBtn onClick={handleSubmit} saving={submitting} label="Trimite cererea" />
+        </form>
+      )}
     </div>
   );
+}
+
+function modeBtn(active, darkMode) {
+  return {
+    padding: '8px 14px', borderRadius: 6, cursor: 'pointer',
+    fontSize: 13, fontWeight: 600,
+    border: active
+      ? (darkMode ? '1px solid #a855f7' : '1px solid #be185d')
+      : (darkMode ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid #d1d5db'),
+    background: active
+      ? (darkMode ? 'rgba(168, 85, 247, 0.15)' : 'rgba(244, 114, 182, 0.1)')
+      : 'transparent',
+    color: active
+      ? (darkMode ? '#e8d4ff' : '#be185d')
+      : (darkMode ? '#c9a8ff' : '#374151'),
+  };
 }
 
 // ── Componente reutilizabile ─────────────────────────────────────────────────
@@ -571,21 +697,31 @@ function SaveBtn({ onClick, saving, saved, label }) {
 }
 
 // ── Stiluri ──────────────────────────────────────────────────────────────────
+// Layout cu coloana de tab-uri în stânga și conținut în dreapta.
+const layoutStyle = {
+  display: 'flex', gap: 24, alignItems: 'flex-start', flexWrap: 'wrap',
+};
 const tabsStyle = (darkMode) => ({
-  display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap',
-  borderBottom: darkMode ? '1px solid rgba(100, 60, 160, 0.2)' : '1px solid rgba(244, 114, 182, 0.25)',
+  display: 'flex', flexDirection: 'column', gap: 4,
+  width: 200, flexShrink: 0,
+  borderRight: darkMode ? '1px solid rgba(100, 60, 160, 0.2)' : '1px solid rgba(244, 114, 182, 0.25)',
+  paddingRight: 12,
 });
 const activeTabStyle = (darkMode) => ({
-  padding: '10px 16px', background: 'transparent', border: 'none',
-  borderBottom: darkMode ? '2px solid rgba(168, 85, 247, 0.8)' : '2px solid #be185d',
+  padding: '10px 14px', background: 'transparent',
+  border: 'none',
+  borderLeft: darkMode ? '3px solid rgba(168, 85, 247, 0.8)' : '3px solid #be185d',
   color: darkMode ? '#a855f7' : '#be185d',
   cursor: 'pointer', fontSize: 14, fontWeight: 600,
+  textAlign: 'left', width: '100%',
 });
 const inactiveTabStyle = (darkMode) => ({
-  padding: '10px 16px', background: 'transparent', border: 'none',
-  borderBottom: '2px solid transparent',
-  color: darkMode ? '#666' : '#888',
+  padding: '10px 14px', background: 'transparent',
+  border: 'none',
+  borderLeft: '3px solid transparent',
+  color: darkMode ? '#888' : '#888',
   cursor: 'pointer', fontSize: 14,
+  textAlign: 'left', width: '100%',
 });
 const sectionStyle = (darkMode) => ({
   border: darkMode ? '1px solid rgba(120, 60, 200, 0.25)' : '1px solid rgba(244, 114, 182, 0.3)',

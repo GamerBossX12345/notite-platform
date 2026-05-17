@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { UserNameWithBadges } from './Badges.jsx';
 
-export function CommentsSection({ noteId, initialComments = [] }) {
+export function CommentsSection({ noteId, initialComments = [], noteAuthorId = null }) {
   const { darkMode } = useAuth();
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState('');
@@ -93,6 +94,7 @@ export function CommentsSection({ noteId, initialComments = [] }) {
               key={comment.id}
               comment={comment}
               darkMode={darkMode}
+              noteAuthorId={noteAuthorId}
               onReply={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
               onDelete={() => handleDelete(comment.id)}
               isReplying={replyingTo === comment.id}
@@ -106,7 +108,7 @@ export function CommentsSection({ noteId, initialComments = [] }) {
   );
 }
 
-function CommentItem({ comment, darkMode, onReply, onDelete, isReplying, onSubmitReply, loading }) {
+function CommentItem({ comment, darkMode, noteAuthorId, onReply, onDelete, isReplying, onSubmitReply, loading }) {
   const [replyText, setReplyText] = useState('');
 
   const handleReplySubmit = (e) => {
@@ -122,7 +124,10 @@ function CommentItem({ comment, darkMode, onReply, onDelete, isReplying, onSubmi
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <strong style={{ color: darkMode ? '#e8e0ff' : '#222' }}>
-              {comment.user?.username || 'Anonim'}
+              <UserNameWithBadges
+                user={comment.user}
+                isAuthor={noteAuthorId && comment.user?.id === noteAuthorId}
+              />
             </strong>
             <span style={{ color: darkMode ? '#a89bc4' : '#999', fontSize: 12, marginLeft: 8 }}>
               {new Date(comment.createdAt).toLocaleDateString('ro')}
@@ -169,7 +174,10 @@ function CommentItem({ comment, darkMode, onReply, onDelete, isReplying, onSubmi
           {comment.replies.map((reply) => (
             <div key={reply.id} style={replyItemStyle(darkMode)}>
               <strong style={{ color: darkMode ? '#e8e0ff' : '#222' }}>
-                {reply.user?.username}
+                <UserNameWithBadges
+                  user={reply.user}
+                  isAuthor={noteAuthorId && reply.user?.id === noteAuthorId}
+                />
               </strong>
               <span style={{ color: darkMode ? '#d8cfee' : '#333' }}> – {reply.content}</span>
               <span style={{ color: darkMode ? '#a89bc4' : '#999', fontSize: 11, marginLeft: 8 }}>

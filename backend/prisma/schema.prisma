@@ -46,9 +46,11 @@ model User {
   banCommentId   String?
   banCount       Int       @default(0)
 
-  // Verificare profesor — automat la .edu sau aprobat manual de head admin.
-  isTeacher          Boolean   @default(false)
-  teacherVerifiedAt  DateTime?
+  // Verificare profesor — automat la .edu, prin cod de invitație, prin upload
+  // de document, sau setat manual de head admin (vezi TeacherVerificationMethod).
+  isTeacher                 Boolean   @default(false)
+  teacherVerifiedAt         DateTime?
+  teacherVerificationMethod TeacherVerificationMethod?
 
   createdAt      DateTime  @default(now())
 
@@ -66,6 +68,9 @@ model User {
   fulfilledRequests  NoteRequest[] @relation("NoteRequestFulfiller")
   teacherRequests  TeacherRequest[]
   reviewedTeacherRequests TeacherRequest[] @relation("TeacherRequestReviewedBy")
+  createdTeacherInviteCodes TeacherInviteCode[] @relation("TeacherInviteCodeCreatedBy")
+  redeemedTeacherInviteCodes TeacherInviteCodeRedemption[]
+  noteValidations  NoteValidation[]
   auditLogs        AuditLog[]  @relation("AuditLogTarget")
   performedAudits  AuditLog[]  @relation("AuditLogActor")
   banNote              Note?          @relation("BanNote",    fields: [banNoteId],    references: [id], onDelete: SetNull)
@@ -130,6 +135,7 @@ model Note {
   flashcards Flashcard[]
   fulfilledRequests NoteRequest[] @relation("NoteRequestFulfilled")
   chatMessages ChatMessage[]
+  validations NoteValidation[]
 
   @@index([subject, gradeLevel])
   @@index([authorId])
@@ -359,6 +365,7 @@ model TeacherRequest {
   userId        String
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   message       String                            // context + dovezi
+  documentUrl   String?                           // upload opțional cu diplomă/legitimație
   status        TeacherRequestStatus @default(PENDING)
   reviewedById  String?
   reviewedBy    User?     @relation("TeacherRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
@@ -375,6 +382,69 @@ enum TeacherRequestStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+// Pe ce cale a fost verificat un profesor. Util pentru audit și pentru a putea
+// revoca anumite categorii (ex: toate codurile expirate ale unei școli).
+enum TeacherVerificationMethod {
+  EMAIL_DOMAIN
+  INVITE_CODE
+  DOCUMENT
+  MANUAL
+}
+
+// Coduri de invitație generate de head admin și distribuite profesorilor offline
+// (printate, mesaj direct, etc.). Userul îl introduce în Setări → devine profesor.
+model TeacherInviteCode {
+  id          String    @id @default(uuid())
+  code        String    @unique             // normalizat uppercase
+  note        String?                       // descriere internă pentru admin
+  maxUses     Int       @default(1)
+  usedCount   Int       @default(0)
+  expiresAt   DateTime?
+  createdById String?
+  createdBy   User?     @relation("TeacherInviteCodeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+
+  redemptions TeacherInviteCodeRedemption[]
+
+  @@index([createdById])
+}
+
+model TeacherInviteCodeRedemption {
+  id        String   @id @default(uuid())
+  codeId    String
+  code      TeacherInviteCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([codeId, userId])
+  @@index([userId])
+}
+
+// Validare a unei notițe de către un profesor verificat — un singur verdict
+// (CORRECT / INCORRECT) per (profesor, notiță), cu mesaj opțional.
+model NoteValidation {
+  id        String   @id @default(uuid())
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  teacherId String
+  teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  verdict   NoteValidationVerdict
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([noteId, teacherId])
+  @@index([noteId])
+  @@index([teacherId])
+}
+
+enum NoteValidationVerdict {
+  CORRECT
+  INCORRECT
 }
 
 // Audit log — fiecare acțiune semnificativă asupra unui cont (ban/unban, warning,

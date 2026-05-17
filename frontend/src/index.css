@@ -188,6 +188,55 @@ code {
   position: relative;
 }
 
+/* Buton publica notita — transparent in repaus, la hover gradient mov-albastru,
+   scale usor + rotatie continua wiggle (acelasi feel ca pe carduri). */
+.publish-btn {
+  padding: 12px 32px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: inherit;
+  background: transparent;
+  border: 1.5px solid rgba(168, 85, 247, 0.55);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease,
+              background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.publish-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%);
+  color: white;
+  border-color: transparent;
+  transform: scale(1.06);
+  animation: noteWiggle 2.8s ease-in-out 0.3s infinite;
+  box-shadow: 0 10px 28px rgba(120, 80, 220, 0.35);
+}
+
+/* In light mode pastram aceeasi gama folosita pe butoanele primare si carduri:
+   roz -> cyan, ca sa nu intre brusc o pata mov pe un fundal pastel. */
+[data-theme="light"] .publish-btn {
+  border-color: rgba(244, 114, 182, 0.55);
+  color: #be185d;
+}
+[data-theme="light"] .publish-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #f472b6 0%, #22d3ee 100%);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 10px 28px rgba(244, 114, 182, 0.35);
+}
+
+.publish-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Leaderboard — discret in repaus (30% vizibil), complet la hover. !important
+   ca să bată opacity-ul inline setat din React. Aplicabil in ambele teme. */
+.leaderboard-wrapper:hover {
+  opacity: 1 !important;
+}
+
 body,
 #root,
 nav,
@@ -207,6 +256,82 @@ p, a, span, div {
 select option {
   background: #1a0b2e;
   color: #e8e0ff;
+}
+
+/* ── Stele in dark mode ──────────────────────────────────────────────────────
+   Sunt randate in body::after, deasupra orbilor din body::before (acelasi
+   z-index, dar ::after se pictează după ::before). Lista de pozitii e fixă;
+   animația controlează doar opacitatea pentru un efect de scintilatie. */
+body::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-repeat: repeat;
+  background-size: 100vw 100vh;
+  background-image:
+    radial-gradient(3px 3px     at  3% 12%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 11%  6%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3.5px 3.5px at 18% 30%, #fff, rgba(255,255,255,0.75) 28%, rgba(255,255,255,0.3) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 24% 18%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3px 3px     at 35%  4%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(3.5px 3.5px at 42% 22%, #fff, rgba(255,255,255,0.75) 28%, rgba(255,255,255,0.3) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 49% 12%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3px 3px     at 56% 30%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 63% 18%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3.5px 3.5px at 71%  6%, #fff, rgba(255,255,255,0.75) 28%, rgba(255,255,255,0.3) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 78% 26%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3px 3px     at 85% 14%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(3px 3px     at 93% 32%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at  7% 48%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3px 3px     at 15% 58%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(3.5px 3.5px at 28% 52%, #fff, rgba(255,255,255,0.75) 28%, rgba(255,255,255,0.3) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 40% 64%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3.5px 3.5px at 52% 56%, #fff, rgba(255,255,255,0.75) 28%, rgba(255,255,255,0.3) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 64% 68%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3px 3px     at 76% 52%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 88% 64%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3px 3px     at 96% 50%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(3px 3px     at  5% 80%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(3.5px 3.5px at 22% 88%, #fff, rgba(255,255,255,0.75) 28%, rgba(255,255,255,0.3) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 36% 76%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3px 3px     at 48% 92%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(3px 3px     at 60% 80%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
+    radial-gradient(3.5px 3.5px at 72% 88%, #fff, rgba(255,255,255,0.75) 28%, rgba(255,255,255,0.3) 55%, transparent 80%),
+    radial-gradient(2.5px 2.5px at 84% 76%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
+    radial-gradient(3px 3px     at 94% 90%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%);
+  animation:
+    starTwinkle 5.5s ease-in-out infinite,
+    starDrift   150s linear        infinite;
+}
+
+/* Cât timp userul mișcă cursorul / tastează / scrollează — ascundem și pauzăm
+   stratul decorativ. După 5s de inactivitate revine. Reduce „lag-ul" la
+   interacțiune (animațiile constante consumă semnificativ pe paint). */
+/* Cât timp există o altă animație vizibilă pe pagină (hover pe card sau pe
+   butonul de publicare = wiggle continuu), pauzăm twinkle+drift (dark) și
+   rotația soarelui (light) — dar nu le ascundem. Reduce overhead-ul fără
+   să schimbe atmosfera vizuală. `:has()` testează arborele și activează
+   regula la fiecare hover; nu depinde de mișcarea cursorului. */
+body:has(.note-card:hover)::after,
+body:has(.publish-btn:hover)::after {
+  /* !important ca să bată regulile de tema (light mode body::after pentru soare,
+     definit mai jos cu specificitate egală) — altfel rotația soarelui ar
+     continua. */
+  animation-play-state: paused !important;
+}
+
+@keyframes starTwinkle {
+  0%, 100% { opacity: 1;    filter: brightness(1.1) drop-shadow(0 0 3px rgba(255,255,255,0.7)); }
+  50%      { opacity: 0.78; filter: brightness(0.85) drop-shadow(0 0 1.5px rgba(255,255,255,0.5)); }
+}
+
+/* Drift orizontal lent — fundalul se deplaseaza cu o placă întreagă (100vw)
+   într-un ciclu; cum placa se repetă identic, sare-loopul e invizibil. */
+@keyframes starDrift {
+  from { background-position-x: 0vw;   }
+  to   { background-position-x: 100vw; }
 }
 
 /* Light Mode */
@@ -245,8 +370,46 @@ select option {
   animation: orbBlink 75s cubic-bezier(0.85, 0, 0.15, 1) infinite;
 }
 
+/* ── Soare in light mode ─────────────────────────────────────────────────────
+   Înlocuiește complet stelele din dark mode. Sun-ul stă fix în colțul din
+   dreapta-sus și emite raze (conic-gradient cu fâșii repetate care se
+   estompează spre exterior printr-un radial-gradient mask). Întregul element
+   se rotește anti-orar. Discul galben e centrat la fel ca razele — fiind
+   simetric, rotația lui nu se observă. */
 [data-theme="light"] body::after {
-  content: none;
+  content: '';
+  position: absolute;
+  inset: auto;
+  top: -260px;
+  right: -260px;
+  width: 700px;
+  height: 700px;
+  pointer-events: none;
+  /* Deasupra overlay-ului alb semitransparent de pe #root, ca sa nu fie spalat. */
+  z-index: 0;
+  /* Două straturi:
+       1. Disc + halou central (radial)
+       2. Raze (conic) — fâșii repetate */
+  background:
+    radial-gradient(circle at center,
+      rgba(253, 224, 71, 1)    0%,
+      rgba(251, 191, 36, 0.95) 12%,
+      rgba(250, 200, 50, 0.55) 22%,
+      rgba(255, 220, 100, 0.18) 34%,
+      transparent              48%),
+    repeating-conic-gradient(from 0deg at center,
+      rgba(253, 224, 71, 0.55) 0deg 4deg,
+      transparent              4deg 14deg);
+  /* Mask radial ca razele să se estompeze spre margine în loc să se taie net */
+  -webkit-mask: radial-gradient(circle at center, #000 30%, rgba(0,0,0,0.7) 55%, transparent 75%);
+          mask: radial-gradient(circle at center, #000 30%, rgba(0,0,0,0.7) 55%, transparent 75%);
+  animation: sunRotate 36s linear infinite;
+  filter: drop-shadow(0 0 40px rgba(253, 224, 71, 0.35));
+}
+
+@keyframes sunRotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
 }
 
 [data-theme="light"] #root {

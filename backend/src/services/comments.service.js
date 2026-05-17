@@ -27,10 +27,10 @@ export async function createComment(userId, noteId, content, parentId = null) {
       parentId: parentId || null,
     },
     include: {
-      user: { select: { id: true, username: true } },
+      user: { select: { id: true, username: true, isTeacher: true } },
       replies: {
         include: {
-          user: { select: { id: true, username: true } },
+          user: { select: { id: true, username: true, isTeacher: true } },
         },
       },
     },
@@ -44,10 +44,10 @@ export async function getComments(noteId) {
   return prisma.comment.findMany({
     where: { noteId, parentId: null },
     include: {
-      user: { select: { id: true, username: true } },
+      user: { select: { id: true, username: true, isTeacher: true } },
       replies: {
         include: {
-          user: { select: { id: true, username: true } },
+          user: { select: { id: true, username: true, isTeacher: true } },
         },
         orderBy: { createdAt: 'asc' },
       },
@@ -86,7 +86,7 @@ export async function updateComment(commentId, content, userId) {
     where: { id: commentId },
     data: { content },
     include: {
-      user: { select: { id: true, username: true } },
+      user: { select: { id: true, username: true, isTeacher: true } },
     },
   });
 }

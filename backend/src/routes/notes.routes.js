@@ -12,6 +12,7 @@ import * as chatController from '../controllers/chat.controller.js';
 import * as savedController from '../controllers/saved.controller.js';
 import * as tagsController from '../controllers/tags.controller.js';
 import * as flashcardsController from '../controllers/flashcards.controller.js';
+import * as teacherController from '../controllers/teacher.controller.js';
 
 const router = Router();
 
@@ -34,6 +35,7 @@ router.get('/search/semantic', notesController.semanticSearch);
 router.get('/:id', notesController.getById);
 router.get('/:id/similar', notesController.similarNotes);
 router.get('/:id/comments', commentsController.list);
+router.get('/:id/validations', teacherController.listValidations);
 
 // Necesită autentificare (și cont nebanat)
 router.post('/', requireAuth, requireNotBanned, withUpload, notesController.create);
@@ -65,6 +67,10 @@ router.post('/:id/flashcards/generate', requireAuth, flashcardsRateLimit, flashc
 router.get('/:id/save',    requireAuth, savedController.getStatus);
 router.post('/:id/save',   requireAuth, savedController.save);
 router.delete('/:id/save', requireAuth, savedController.unsave);
+
+// Teacher validation
+router.post('/:id/validate',   requireAuth, requireNotBanned, teacherController.validateNote);
+router.delete('/:id/validate', requireAuth, teacherController.removeValidation);
 
 // Reports
 router.post('/:id/reports', requireAuth, reportsController.create);

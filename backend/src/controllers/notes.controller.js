@@ -166,9 +166,9 @@ export async function getById(req, res, next) {
         comments: {
           where: { parentId: null },
           include: {
-            user: { select: { id: true, username: true } },
+            user: { select: { id: true, username: true, isTeacher: true } },
             replies: {
-              include: { user: { select: { id: true, username: true } } },
+              include: { user: { select: { id: true, username: true, isTeacher: true } } },
             },
           },
         },
@@ -290,7 +290,17 @@ export async function update(req, res, next) {
 
     const note = await prisma.note.findUnique({ where: { id: req.params.id } });
     if (!note) throw new AppError('Notiță inexistentă', 404);
-    if (note.authorId !== req.user.id) throw new AppError('Nu ai voie să modifici', 403);
+    // Autorul își poate edita propria notiță. Profesorii verificați pot corecta
+    // notițe ale altor utilizatori (cerință funcțională specifică).
+    let isTeacher = false;
+    if (note.authorId !== req.user.id) {
+      const u = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { isTeacher: true },
+      });
+      isTeacher = !!u?.isTeacher;
+      if (!isTeacher) throw new AppError('Nu ai voie să modifici', 403);
+    }
 
     const data = {};
     if (validated.title !== undefined) data.title = validated.title;

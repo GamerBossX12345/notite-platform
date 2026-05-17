@@ -9,6 +9,9 @@ import { AIChatModal } from '../components/AIChatModal.jsx';
 import { TipTapRenderer } from '../components/TipTapEditor.jsx';
 import Leaderboard from '../components/Leaderboard.jsx';
 import { useRecentNotes } from '../hooks/useRecentNotes.js';
+import { NoteEditForm } from '../components/NoteEditForm.jsx';
+import { TeacherBadge, AuthorBadge } from '../components/Badges.jsx';
+import { TeacherValidationPanel } from '../components/TeacherValidationPanel.jsx';
 
 const BACKEND_URL = new URL(api.defaults.baseURL).origin;
 
@@ -124,11 +127,8 @@ export default function NotePage() {
   const [userRating, setUserRating]             = useState(0);
   const [submittingRating, setSubmittingRating] = useState(false);
 
-  // Edit inline
-  const [editing, setEditing]       = useState(false);
-  const [editTitle, setEditTitle]   = useState('');
-  const [editChapter, setEditChapter] = useState('');
-  const [savingEdit, setSavingEdit] = useState(false);
+  // Edit — folosim NoteEditForm care suportă editarea completă (inclusiv conținut).
+  const [editing, setEditing] = useState(false);
 
   // Report
   const [showReport, setShowReport]               = useState(false);
@@ -143,7 +143,11 @@ export default function NotePage() {
 
   const isAuthor = user && note && user.id === note.authorId;
   const isAdmin  = user?.role === 'ADMIN' || user?.role === 'HEAD_ADMIN';
-  const canManage = isAuthor || isAdmin;
+  const isTeacher = !!user?.isTeacher;
+  // Autor + admin + profesor verificat pot edita conținutul notei.
+  const canEdit   = isAuthor || isAdmin || isTeacher;
+  // Doar autorul + admin pot șterge.
+  const canDelete = isAuthor || isAdmin;
 
   const { trackVisit } = useRecentNotes();
 
@@ -209,27 +213,9 @@ export default function NotePage() {
     }
   }
 
-  function openEdit() {
-    setEditTitle(note.title);
-    setEditChapter(note.chapter || '');
-    setEditing(true);
-  }
-
-  async function handleEditSave(e) {
-    e.preventDefault();
-    setSavingEdit(true);
-    try {
-      const payload = { title: editTitle, chapter: editChapter };
-      const { data } = isAuthor
-        ? await api.put(`/notes/${id}`, payload)
-        : await api.patch(`/admin/notes/${id}`, payload);
-      setNote(prev => ({ ...prev, ...data }));
-      setEditing(false);
-    } catch (err) {
-      alert(err.response?.data?.error || 'Eroare la salvare');
-    } finally {
-      setSavingEdit(false);
-    }
+  function handleNoteSaved(updated) {
+    setNote(prev => ({ ...prev, ...updated }));
+    setEditing(false);
   }
 
   async function submitNoteAppeal(e) {
@@ -277,42 +263,28 @@ export default function NotePage() {
       <div className="no-print">
         <Leaderboard featuredAuthor={note.author} />
       </div>
-      {/* Header: titlu sau formular de editare */}
+      {/* Header: titlu sau formular de editare (titlu + conținut + fișier + meta) */}
       {editing ? (
-        <form onSubmit={handleEditSave} style={{ marginBottom: 24 }}>
-          <label style={labelStyle}>
-            Titlu
-            <input
-              value={editTitle}
-              onChange={e => setEditTitle(e.target.value)}
-              required
-              style={inputStyle(darkMode)}
-            />
-          </label>
-          <label style={labelStyle}>
-            Capitol
-            <input
-              value={editChapter}
-              onChange={e => setEditChapter(e.target.value)}
-              placeholder="opțional"
-              style={inputStyle(darkMode)}
-            />
-          </label>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            <button type="submit" disabled={savingEdit} style={btnPrimary(darkMode)}>
-              {savingEdit ? 'Se salvează...' : 'Salvează'}
-            </button>
-            <button type="button" onClick={() => setEditing(false)} style={btnSecondary(darkMode)}>
-              Anulează
-            </button>
-          </div>
-        </form>
+        <NoteEditForm
+          note={note}
+          onSaved={handleNoteSaved}
+          onCancel={() => setEditing(false)}
+        />
       ) : (
         <>
           <h1>{note.title}</h1>
           <p style={{ color: '#666' }}>
             {note.subject} • clasa a {note.gradeLevel}-a • {note.type}
             {note.chapter && <> • capitol: {note.chapter}</>}
+            {note.author && (
+              <>
+                {' '}• de{' '}
+                <Link to={`/users/${note.author.username}`} style={{ color: 'inherit' }}>
+                  {note.author.username}
+                </Link>
+                {note.author.isTeacher && <TeacherBadge />}
+              </>
+            )}
           </p>
 
           {/* Banner ștergere programată — vizibil pentru autor și admini */}
@@ -374,11 +346,13 @@ export default function NotePage() {
             </div>
           )}
           <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-            {canManage && (
-              <>
-                <button onClick={openEdit} style={btnSecondary(darkMode)}>Editează</button>
-                <button onClick={handleDelete} style={btnDanger}>Șterge</button>
-              </>
+            {canEdit && (
+              <button onClick={() => setEditing(true)} style={btnSecondary(darkMode)}>
+                {isAuthor ? 'Editează' : 'Editează (profesor)'}
+              </button>
+            )}
+            {canDelete && (
+              <button onClick={handleDelete} style={btnDanger}>Șterge</button>
             )}
             <button
               onClick={() => window.print()}
@@ -576,9 +550,14 @@ export default function NotePage() {
         <SimilarNotes noteId={id} darkMode={darkMode} />
       </div>
 
+      {/* Validări profesori — vizibil pentru toată lumea, acțiuni doar profesori */}
+      <div className="no-print">
+        <TeacherValidationPanel note={note} />
+      </div>
+
       {/* Comentarii cu threading */}
       <div className="no-print">
-        <CommentsSection noteId={id} initialComments={comments} />
+        <CommentsSection noteId={id} initialComments={comments} noteAuthorId={note.authorId} />
       </div>
     </article>
   );

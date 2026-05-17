@@ -44,7 +44,7 @@ export default function Layout() {
 
   return (
     <div>
-      <nav style={navStyle}>
+      <nav style={navStyle(darkMode)}>
         {user && (
           <button
             onClick={() => setMainMenuOpen(true)}
@@ -183,18 +183,25 @@ function MenuItem({ icon, label, onClick, color }) {
 
 // TODO: mută stilurile într-un fișier .css sau folosește o bibliotecă (ex: CSS modules).
 // Inline styles sunt OK pentru skeleton, dar prost pentru proiect mare.
-const navStyle = {
+// Header — translucid + blur, pereche cu footer-ul. Paleta diferă pe teme:
+// mov-inchis în dark, roz-pastel în light.
+const navStyle = (darkMode) => ({
   display: 'flex',
   alignItems: 'center',
   gap: 16,
   padding: '12px 24px',
-  borderBottom: '1px solid rgba(120, 60, 200, 0.3)',
-  background: 'rgba(20, 8, 50, 0.5)',
+  borderBottom: darkMode
+    ? '1px solid rgba(120, 60, 200, 0.3)'
+    : '1px solid rgba(244, 114, 182, 0.35)',
+  background: darkMode
+    ? 'rgba(20, 8, 50, 0.5)'
+    : 'rgba(255, 240, 248, 0.7)',
   backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
   position: 'sticky',
   top: 0,
   zIndex: 100,
-};
+});
 
 const footerStyle = (darkMode) => ({
   display: 'flex',

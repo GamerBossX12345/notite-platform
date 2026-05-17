@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { api } from '../api/client.js';
@@ -13,12 +13,87 @@ const NOTE_TYPES = [
   { value: 'FORMULE',           label: 'Formule' },
 ];
 
-const SUBJECTS = [
-  'Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică',
-  'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză',
-  'Filosofie', 'Economie', 'Psihologie',
-];
-const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
+const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5); // 5..12
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+const romanOf = (n) => ROMAN[n - 1] || String(n);
+
+// Materii disponibile pe clasă — pentru gimnaziu (5-8) sunt mai puține,
+// iar pentru liceu (9-12) se adaugă Filosofie / Economie / Psihologie.
+const SUBJECTS_BY_GRADE = {
+  5:  ['Matematică', 'Biologie', 'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză', 'Informatică'],
+  6:  ['Matematică', 'Fizică', 'Biologie', 'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză', 'Informatică'],
+  7:  ['Matematică', 'Fizică', 'Chimie', 'Biologie', 'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză', 'Informatică'],
+  8:  ['Matematică', 'Fizică', 'Chimie', 'Biologie', 'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză', 'Informatică'],
+  9:  ['Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică', 'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză'],
+  10: ['Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică', 'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză', 'Psihologie'],
+  11: ['Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică', 'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză', 'Filosofie', 'Economie', 'Psihologie'],
+  12: ['Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică', 'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză', 'Filosofie', 'Economie'],
+};
+
+// Capitole predefinite per (clasă, materie). Sunt acoperite combinațiile mai
+// frecvente; pentru restul, userul folosește opțiunea „Altul…" care deschide
+// un input text liber.
+const CHAPTERS = {
+  '5|Matematică': ['Numere naturale', 'Divizibilitate', 'Fracții ordinare', 'Fracții zecimale', 'Elemente de geometrie', 'Unități de măsură'],
+  '6|Matematică': ['Mulțimea numerelor naturale', 'Divizibilitate', 'Numere raționale pozitive', 'Rapoarte și proporții', 'Drepte și unghiuri', 'Triunghiul'],
+  '7|Matematică': ['Mulțimea numerelor raționale', 'Mulțimea numerelor reale', 'Calcul algebric', 'Ecuații și inecuații', 'Patrulater', 'Asemănarea triunghiurilor', 'Relații metrice'],
+  '8|Matematică': ['Calcul algebric', 'Funcții', 'Ecuații și sisteme', 'Cerc', 'Arii și volume', 'Corpuri geometrice'],
+  '9|Matematică': ['Mulțimi de numere', 'Funcția de gradul I', 'Funcția de gradul al II-lea', 'Vectori în plan', 'Trigonometrie', 'Geometrie analitică'],
+  '10|Matematică': ['Mulțimi de numere (R, C)', 'Funcții și ecuații', 'Combinatorică', 'Geometrie analitică', 'Trigonometrie aplicată'],
+  '11|Matematică': ['Permutări, aranjamente, combinări', 'Matrice', 'Determinanți', 'Sisteme liniare', 'Limite de funcții', 'Continuitate', 'Derivabilitate'],
+  '12|Matematică': ['Grupuri, inele, corpuri', 'Polinoame', 'Primitive', 'Integrale definite', 'Aplicații ale integralelor'],
+
+  '6|Fizică':  ['Mărimi și unități', 'Optica', 'Fenomene termice'],
+  '7|Fizică':  ['Mecanica', 'Fenomene electrice', 'Optica'],
+  '8|Fizică':  ['Lucrul mecanic și energia', 'Electricitate', 'Optica geometrică'],
+  '9|Fizică':  ['Mecanică', 'Statică', 'Termodinamică'],
+  '10|Fizică': ['Mecanica fluidelor', 'Termodinamică', 'Electrostatică'],
+  '11|Fizică': ['Curent continuu', 'Curent alternativ', 'Câmp magnetic', 'Oscilații și unde'],
+  '12|Fizică': ['Electromagnetism', 'Optica ondulatorie', 'Fizică atomică', 'Fizică nucleară'],
+
+  '7|Chimie':  ['Substanțe pure', 'Atomul', 'Soluții'],
+  '8|Chimie':  ['Reacții chimice', 'Acizi și baze', 'Săruri'],
+  '9|Chimie':  ['Structura atomului', 'Tabelul periodic', 'Legături chimice'],
+  '10|Chimie': ['Chimie organică — hidrocarburi', 'Compuși hidroxilici', 'Compuși carbonilici'],
+  '11|Chimie': ['Chimie organică avansată', 'Aminoacizi și proteine', 'Glucide'],
+  '12|Chimie': ['Termodinamică chimică', 'Cinetică chimică', 'Electrochimie'],
+
+  '9|Biologie':  ['Celula', 'Țesuturi', 'Organe și sisteme'],
+  '10|Biologie': ['Anatomia și fiziologia omului', 'Sistemul digestiv', 'Sistemul circulator'],
+  '11|Biologie': ['Genetică', 'Ecologie', 'Evoluție'],
+  '12|Biologie': ['Genetică moleculară', 'Biotehnologii', 'Genetică umană'],
+
+  '9|Informatică':  ['Algoritmi — noțiuni introductive', 'Limbajul C/C++ — bazele', 'Structuri de date elementare'],
+  '10|Informatică': ['Subprograme', 'Tablouri', 'Șiruri de caractere', 'Algoritmi de sortare'],
+  '11|Informatică': ['Structuri de date', 'Backtracking', 'Recursivitate', 'Programare dinamică'],
+  '12|Informatică': ['Grafuri neorientate', 'Grafuri orientate', 'Arbori', 'Baze de date'],
+
+  '9|Istorie':  ['Antichitate', 'Evul Mediu'],
+  '10|Istorie': ['Epoca modernă'],
+  '11|Istorie': ['Secolul XX'],
+  '12|Istorie': ['România contemporană', 'Lumea postbelică'],
+
+  '9|Geografie':  ['Geografie fizică generală'],
+  '10|Geografie': ['Geografie umană', 'Geografie economică'],
+  '11|Geografie': ['Europa', 'Uniunea Europeană'],
+  '12|Geografie': ['România — geografie', 'Probleme globale'],
+
+  '9|Română':  ['Literatura veche și premodernă', 'Curente literare'],
+  '10|Română': ['Pașoptismul', 'Junimea', 'Marii clasici'],
+  '11|Română': ['Modernism', 'Tradiționalism', 'Avangardă'],
+  '12|Română': ['Postmodernism', 'Romanul interbelic', 'Poezia interbelică'],
+
+  '11|Filosofie': ['Filosofia politică', 'Etică', 'Filosofia cunoașterii'],
+  '12|Filosofie': ['Existența', 'Persoana', 'Filosofia religiei'],
+
+  '11|Economie': ['Cerere și ofertă', 'Piața', 'Producția'],
+  '12|Economie': ['Piața muncii', 'Inflația', 'Comerțul internațional'],
+
+  '10|Psihologie': ['Procese cognitive', 'Procese afective'],
+  '11|Psihologie': ['Personalitatea', 'Conduita socială'],
+};
+
+const CHAPTER_OTHER = '__OTHER__';
 const MAX_FILE_MB  = 20;
 
 const ACCEPTED_TYPES = [
@@ -44,19 +119,50 @@ export default function UploadPage() {
   const [title, setTitle]           = useState('');
   const [subject, setSubject]       = useState('');
   const [gradeLevel, setGradeLevel] = useState('');
-  const [chapter, setChapter]       = useState('');
+  const [chapter, setChapter]       = useState('');     // valoarea finală trimisă
+  const [chapterChoice, setChapterChoice] = useState(''); // dropdown ('' | nume | __OTHER__)
+  const [chapterCustom, setChapterCustom] = useState(''); // text liber când e __OTHER__
   const [type, setType]             = useState('');
   const [tags, setTags]             = useState([]);
   const [file, setFile]             = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [error, setError]           = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [successNoteId, setSuccessNoteId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [hasDraft, setHasDraft]     = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
 
-  // La mount: dacă există un draft pentru userul curent, afișează un banner.
+  // Materii și capitole dependente
+  const availableSubjects = useMemo(() => {
+    if (!gradeLevel) return [];
+    return SUBJECTS_BY_GRADE[Number(gradeLevel)] || [];
+  }, [gradeLevel]);
+
+  const availableChapters = useMemo(() => {
+    if (!gradeLevel || !subject) return [];
+    return CHAPTERS[`${gradeLevel}|${subject}`] || [];
+  }, [gradeLevel, subject]);
+
+  // Când se schimbă clasa, dacă materia curentă nu mai e validă, o resetăm.
+  useEffect(() => {
+    if (subject && availableSubjects.length > 0 && !availableSubjects.includes(subject)) {
+      setSubject('');
+    }
+  }, [availableSubjects, subject]);
+
+  // Când se schimbă clasa sau materia, resetăm capitolul.
+  useEffect(() => {
+    setChapterChoice('');
+    setChapterCustom('');
+    setChapter('');
+  }, [gradeLevel, subject]);
+
+  // Sincronizăm `chapter` cu alegerea dropdown / text custom.
+  useEffect(() => {
+    if (chapterChoice === CHAPTER_OTHER) setChapter(chapterCustom.trim());
+    else setChapter(chapterChoice);
+  }, [chapterChoice, chapterCustom]);
+
   useEffect(() => {
     if (!user) return;
     const raw = localStorage.getItem(DRAFT_KEY(user.id));
@@ -76,10 +182,18 @@ export default function UploadPage() {
     try {
       const d = JSON.parse(raw);
       setTitle(d.title || '');
-      setSubject(d.subject || '');
       setGradeLevel(d.gradeLevel || '');
-      setChapter(d.chapter || '');
+      setSubject(d.subject || '');
       setType(d.type || '');
+      if (d.chapter) {
+        const known = (CHAPTERS[`${d.gradeLevel}|${d.subject}`] || []).includes(d.chapter);
+        if (known) {
+          setChapterChoice(d.chapter);
+        } else {
+          setChapterChoice(CHAPTER_OTHER);
+          setChapterCustom(d.chapter);
+        }
+      }
       if (d.content && editor) editor.commands.setContent(d.content);
       setHasDraft(false);
       setDraftRestored(true);
@@ -91,9 +205,8 @@ export default function UploadPage() {
     setHasDraft(false);
   }
 
-  // Auto-save în localStorage. Salvăm pe schimbări de câmpuri + pe update-uri editor.
   function saveDraft() {
-    if (!user || !editor || successNoteId) return;
+    if (!user || !editor) return;
     const hasAnything = title || subject || gradeLevel || chapter || type || !editor.isEmpty;
     if (!hasAnything) return;
     const draft = {
@@ -107,18 +220,17 @@ export default function UploadPage() {
   useEffect(() => {
     const t = setTimeout(saveDraft, 400);
     return () => clearTimeout(t);
-  }, [user, title, subject, gradeLevel, chapter, type, successNoteId]); // eslint-disable-line
+  }, [user, title, subject, gradeLevel, chapter, type]); // eslint-disable-line
 
   useEffect(() => {
     if (!editor) return;
     const onUpdate = () => {
-      // debounce simplu cu setTimeout pe fiecare modificare
       clearTimeout(onUpdate._t);
       onUpdate._t = setTimeout(saveDraft, 600);
     };
     editor.on('update', onUpdate);
     return () => { editor.off('update', onUpdate); clearTimeout(onUpdate._t); };
-  }, [editor, user, title, subject, gradeLevel, chapter, type, successNoteId]); // eslint-disable-line
+  }, [editor, user, title, subject, gradeLevel, chapter, type]); // eslint-disable-line
 
   useEffect(() => {
     if (!loading && !user) navigate('/login', { replace: true });
@@ -127,13 +239,6 @@ export default function UploadPage() {
   useEffect(() => {
     return () => { if (filePreview) URL.revokeObjectURL(filePreview); };
   }, [filePreview]);
-
-  // Navighează spre notiță după ce popupul e vizibil 1.8s
-  useEffect(() => {
-    if (!successNoteId) return;
-    const t = setTimeout(() => navigate(`/notes/${successNoteId}`), 1800);
-    return () => clearTimeout(t);
-  }, [successNoteId]);
 
   if (loading || !user) return <p>Se încarcă...</p>;
 
@@ -160,6 +265,10 @@ export default function UploadPage() {
     e.preventDefault();
     setError(null);
 
+    if (!chapter || !chapter.trim()) {
+      setError('Selectează sau introdu un capitol.');
+      return;
+    }
     const hasContent = editor && !editor.isEmpty;
     if (!hasContent && !file) {
       setError('Adaugă conținut în editor sau un fișier atașat.');
@@ -180,17 +289,16 @@ export default function UploadPage() {
       formData.append('subject', subject);
       formData.append('gradeLevel', gradeLevel);
       if (chapter) formData.append('chapter', chapter);
-      formData.append('type', type);
-
-      if (hasContent) {
-        formData.append('content', JSON.stringify(editor.getJSON()));
-      }
+      // Tipul e marcat opțional în UI, dar schema cere o valoare — fallback rezumat.
+      formData.append('type', type || 'REZUMAT');
+      if (hasContent) formData.append('content', JSON.stringify(editor.getJSON()));
       if (tags.length > 0) formData.append('tags', JSON.stringify(tags));
       if (file) formData.append('file', file);
 
       const { data } = await api.post('/notes', formData);
       if (user) localStorage.removeItem(DRAFT_KEY(user.id));
-      setSuccessNoteId(data.id);
+      // Navigare directă, fără popup de delay.
+      navigate(`/notes/${data.id}`);
     } catch (err) {
       setError(err.response?.data?.error || 'Eroare la salvare');
       setSubmitting(false);
@@ -198,20 +306,7 @@ export default function UploadPage() {
   }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto' }}>
-      {/* Popup succes */}
-      {successNoteId && (
-        <div style={successOverlay}>
-          <div style={successBox(darkMode)}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
-            <h2 style={{ margin: '0 0 8px', color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>
-              Notița a fost publicată!
-            </h2>
-            <p style={{ color: darkMode ? '#a89bc4' : '#666', margin: 0 }}>Te redirecționăm acum...</p>
-          </div>
-        </div>
-      )}
-
+    <div style={{ maxWidth: 900, margin: '0 auto' }}>
       <h1>📝 Notiță nouă</h1>
 
       {hasDraft && (
@@ -234,88 +329,124 @@ export default function UploadPage() {
       )}
 
       <form onSubmit={openConfirm}>
+        {/* Rândul 1: Titlu — 1/2 din lățime */}
+        <div style={{ marginBottom: 16, width: '50%', minWidth: 280 }}>
+          <FieldLabel darkMode={darkMode}>Titlu</FieldLabel>
+          <input
+            type="text" value={title} onChange={e => setTitle(e.target.value)} required
+            placeholder="Ex: Funcții de gradul al II-lea"
+            style={inputStyle(darkMode)}
+          />
+        </div>
 
-        <label style={labelStyle}>
-          Titlu
-          <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-            required style={inputStyle(darkMode)} />
-        </label>
-
-        <label style={labelStyle}>
-          Materie
-          <select value={subject} onChange={e => setSubject(e.target.value)} required style={inputStyle(darkMode)}>
-            <option value="" disabled>Selectează materia</option>
-            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </label>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <label style={{ ...labelStyle, flex: 1 }}>
-            Clasa
+        {/* Rândul 2: Clasa (1/3) | Tag-uri (1/3) | Tip (1/3) */}
+        <div style={threeColGrid}>
+          <div>
+            <FieldLabel darkMode={darkMode}>Clasa</FieldLabel>
             <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} required style={inputStyle(darkMode)}>
               <option value="" disabled>Selectează clasa</option>
-              {GRADE_LEVELS.map(g => <option key={g} value={g}>a {g}-a</option>)}
+              {GRADE_LEVELS.map(g => (
+                <option key={g} value={g}>Clasa {romanOf(g)}</option>
+              ))}
             </select>
-          </label>
-          <label style={{ ...labelStyle, flex: 1 }}>
-            Tip
-            <select value={type} onChange={e => setType(e.target.value)} required style={inputStyle(darkMode)}>
-              <option value="" disabled>Selectează tipul</option>
+          </div>
+          <div>
+            <FieldLabel darkMode={darkMode} hint="opțional dar recomandat">Tag-uri</FieldLabel>
+            <TagInput value={tags} onChange={setTags} max={8} />
+          </div>
+          <div>
+            <FieldLabel darkMode={darkMode} hint="opțional">Tip</FieldLabel>
+            <select value={type} onChange={e => setType(e.target.value)} style={inputStyle(darkMode)}>
+              <option value="">Selectează tipul</option>
               {NOTE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
-          </label>
+          </div>
         </div>
 
-        <label style={labelStyle}>
-          Capitol <span style={{ color: '#888', fontWeight: 400 }}>(opțional)</span>
-          <input type="text" value={chapter} onChange={e => setChapter(e.target.value)} style={inputStyle(darkMode)} />
-        </label>
-
-        <div style={{ marginBottom: 16 }}>
-          <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>
-            Tag-uri <span style={{ color: '#888', fontWeight: 400 }}>(opțional — ex: bac, examen, definiții, etc.)</span>
-          </span>
-          <TagInput value={tags} onChange={setTags} max={8} />
+        {/* Rândul 3: Materie (1/2) | Capitol (1/2) */}
+        <div style={twoColGrid}>
+          <div>
+            <FieldLabel darkMode={darkMode}>Materie</FieldLabel>
+            <select
+              value={subject} onChange={e => setSubject(e.target.value)}
+              required disabled={!gradeLevel}
+              style={inputStyle(darkMode, !gradeLevel)}
+            >
+              <option value="" disabled>
+                {gradeLevel ? 'Selectează materia' : 'Alege întâi clasa'}
+              </option>
+              {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <FieldLabel darkMode={darkMode}>Capitol</FieldLabel>
+            <select
+              value={chapterChoice}
+              onChange={e => setChapterChoice(e.target.value)}
+              required disabled={!subject}
+              style={inputStyle(darkMode, !subject)}
+            >
+              <option value="" disabled>
+                {subject ? 'Selectează capitolul' : 'Alege întâi materia'}
+              </option>
+              {availableChapters.map(c => <option key={c} value={c}>{c}</option>)}
+              <option value={CHAPTER_OTHER}>Altul…</option>
+            </select>
+            {chapterChoice === CHAPTER_OTHER && (
+              <input
+                type="text" value={chapterCustom}
+                onChange={e => setChapterCustom(e.target.value)}
+                placeholder="Introdu capitolul"
+                required
+                style={{ ...inputStyle(darkMode), marginTop: 8 }}
+              />
+            )}
+          </div>
         </div>
 
-        <label style={labelStyle}>
-          Conținut
-          <TipTapEditor editor={editor} />
-        </label>
-
-        {/* Fișier atașat */}
-        <div style={{ marginBottom: 16 }}>
-          <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>
-            Fișier atașat <span style={{ color: '#888', fontWeight: 400 }}>(opțional — imagini, PDF, Word, PowerPoint, Excel, max {MAX_FILE_MB} MB)</span>
-          </span>
-          {!file ? (
-            <label style={dropZoneStyle}>
-              <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES}
-                onChange={handleFileChange} style={{ display: 'none' }} />
-              <span style={{ color: '#0066cc', cursor: 'pointer' }}>Alege fișier</span>
-              <span style={{ color: '#999', marginLeft: 8 }}>sau trage aici</span>
-            </label>
-          ) : file.type === 'application/pdf' ? (
-            <PdfPreviewCard file={file} onRemove={removeFile} darkMode={darkMode} />
-          ) : (
-            <div style={filePreviewContainerStyle}>
-              {filePreview ? (
-                <img src={filePreview} alt="previzualizare"
-                  style={{ maxHeight: 200, maxWidth: '100%', borderRadius: 6, display: 'block', marginBottom: 8 }} />
-              ) : (
-                <div style={{ fontSize: 32, marginBottom: 4 }}>📎</div>
-              )}
-              <p style={{ margin: 0, fontSize: 14, color: '#333' }}>{file.name}</p>
-              <p style={{ margin: '2px 0 8px', fontSize: 12, color: '#888' }}>
-                {(file.size / 1024 / 1024).toFixed(2)} MB
-              </p>
-              <button type="button" onClick={removeFile} style={btnRemoveStyle}>Elimină fișier</button>
-            </div>
-          )}
+        {/* Rândul 4: Conținut + Fișier (2-în-1) */}
+        <div style={comboBoxStyle(darkMode)}>
+          <div style={{ padding: 14, borderBottom: darkMode ? '1px solid rgba(168, 85, 247, 0.2)' : '1px solid rgba(0,0,0,0.08)' }}>
+            <FieldLabel darkMode={darkMode} compact>Conținut</FieldLabel>
+            <TipTapEditor editor={editor} />
+          </div>
+          <div style={{ padding: 14 }}>
+            <FieldLabel darkMode={darkMode} compact hint={`opțional — max ${MAX_FILE_MB} MB`}>Fișier atașat</FieldLabel>
+            {!file ? (
+              <label style={dropZoneStyle(darkMode)}>
+                <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES}
+                  onChange={handleFileChange} style={{ display: 'none' }} />
+                <span style={{ color: darkMode ? '#c9a8ff' : '#0066cc', cursor: 'pointer', fontWeight: 600 }}>
+                  Alege fișier
+                </span>
+                <span style={{ color: darkMode ? '#867aa3' : '#999', marginLeft: 8 }}>
+                  sau trage aici
+                </span>
+              </label>
+            ) : file.type === 'application/pdf' ? (
+              <PdfPreviewCard file={file} onRemove={removeFile} darkMode={darkMode} />
+            ) : (
+              <div style={filePreviewContainerStyle(darkMode)}>
+                {filePreview ? (
+                  <img src={filePreview} alt="previzualizare"
+                    style={{ maxHeight: 200, maxWidth: '100%', borderRadius: 6, display: 'block', marginBottom: 8 }} />
+                ) : (
+                  <div style={{ fontSize: 32, marginBottom: 4 }}>📎</div>
+                )}
+                <p style={{ margin: 0, fontSize: 14, color: darkMode ? '#e8e0ff' : '#333' }}>{file.name}</p>
+                <p style={{ margin: '2px 0 8px', fontSize: 12, color: darkMode ? '#a89bc4' : '#888' }}>
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+                <button type="button" onClick={removeFile} style={btnRemoveStyle(darkMode)}>Elimină fișier</button>
+              </div>
+            )}
+          </div>
         </div>
 
-        {error && <p style={{ color: 'red', marginBottom: 12 }}>❌ {error}</p>}
+        {error && <p style={{ color: '#ef4444', marginBottom: 12 }}>❌ {error}</p>}
 
-        <div style={{ position: 'relative', display: 'inline-block' }}>
+        {/* Buton publica — centrat, transparent, hover gradient + scale + rotate */}
+        <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', marginTop: 24 }}>
           {confirmOpen && (
             <div style={confirmPopoverStyle(darkMode)}>
               <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600 }}>
@@ -335,11 +466,32 @@ export default function UploadPage() {
               <div style={confirmArrowStyle(darkMode)} />
             </div>
           )}
-          <button type="submit" disabled={submitting || !!successNoteId || confirmOpen} style={btnSubmitStyle}>
-            {submitting ? 'Se publică...' : 'Publică notița'}
+          <button
+            type="submit"
+            disabled={submitting || confirmOpen}
+            className="publish-btn"
+          >
+            {submitting ? 'Se publică…' : 'Publică notița'}
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function FieldLabel({ children, hint, darkMode, compact }) {
+  return (
+    <div style={{
+      display: 'block', fontWeight: 500, fontSize: 14,
+      marginBottom: compact ? 6 : 6,
+      color: darkMode ? '#d4c8ff' : '#1a1a1a',
+    }}>
+      {children}
+      {hint && (
+        <span style={{ color: darkMode ? '#a89bc4' : '#888', fontWeight: 400, marginLeft: 6 }}>
+          ({hint})
+        </span>
+      )}
     </div>
   );
 }
@@ -402,55 +554,59 @@ function PdfPreviewCard({ file, onRemove, darkMode }) {
   );
 }
 
-const labelStyle = { display: 'block', marginBottom: 16, fontWeight: 500 };
-const inputStyle = (darkMode) => ({
-  display: 'block', width: '100%', padding: 8, marginTop: 4,
+// ── Stiluri ──────────────────────────────────────────────────────────────────
+const threeColGrid = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr 1fr',
+  gap: 12,
+  marginBottom: 16,
+};
+const twoColGrid = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 12,
+  marginBottom: 16,
+};
+const inputStyle = (darkMode, disabled) => ({
+  display: 'block', width: '100%', padding: 8,
   background: darkMode ? 'transparent' : 'white',
   border: darkMode ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid #ccc',
   color: darkMode ? '#e8e0ff' : '#222',
   borderRadius: 6, fontSize: 14, boxSizing: 'border-box',
-  transition: 'background 0.4s ease, border-color 0.4s ease, color 0.4s ease',
+  opacity: disabled ? 0.55 : 1,
+  cursor: disabled ? 'not-allowed' : 'auto',
+  transition: 'background 0.4s ease, border-color 0.4s ease, color 0.4s ease, opacity 0.2s ease',
 });
-const dropZoneStyle = {
-  display: 'flex', alignItems: 'center', padding: '20px 16px',
-  border: '2px dashed #ccc', borderRadius: 8, cursor: 'pointer',
-};
-const filePreviewContainerStyle = {
-  padding: 16, border: '1px solid #e0e0e0', borderRadius: 8, background: '#fafafa',
-};
-const btnRemoveStyle = {
-  padding: '4px 10px', background: 'white', border: '1px solid #ccc',
-  borderRadius: 4, cursor: 'pointer', fontSize: 13, color: '#666',
-};
-const btnSubmitStyle = {
-  padding: '10px 24px', background: '#0066cc', color: 'white',
-  border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 15,
-};
-const successOverlay = {
-  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-  background: 'rgba(0,0,0,0.5)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  zIndex: 2000,
-  animation: 'fadeIn 0.2s ease',
-};
-const successBox = (darkMode) => ({
-  background: darkMode ? 'rgba(20, 8, 50, 0.95)' : 'white',
-  border: darkMode ? '1px solid rgba(168, 85, 247, 0.45)' : 'none',
-  backdropFilter: 'blur(14px)',
-  borderRadius: 16,
-  padding: '40px 48px',
-  textAlign: 'center',
+const comboBoxStyle = (darkMode) => ({
+  marginBottom: 16,
+  borderRadius: 12,
+  overflow: 'hidden',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.35)' : '1px solid rgba(0, 0, 0, 0.1)',
+  background: darkMode ? 'rgba(20, 8, 50, 0.4)' : 'rgba(255, 255, 255, 0.6)',
   boxShadow: darkMode
-    ? '0 20px 60px rgba(120, 40, 200, 0.35)'
-    : '0 20px 60px rgba(0,0,0,0.2)',
-  animation: 'scaleIn 0.25s ease',
-  color: darkMode ? '#e8e0ff' : '#222',
+    ? '0 4px 16px rgba(80, 20, 160, 0.18)'
+    : '0 4px 16px rgba(0, 0, 0, 0.04)',
 });
-
+const dropZoneStyle = (darkMode) => ({
+  display: 'flex', alignItems: 'center', padding: '20px 16px',
+  border: darkMode ? '2px dashed rgba(168, 85, 247, 0.4)' : '2px dashed #ccc',
+  borderRadius: 8, cursor: 'pointer',
+});
+const filePreviewContainerStyle = (darkMode) => ({
+  padding: 16, borderRadius: 8,
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid #e0e0e0',
+  background: darkMode ? 'rgba(0,0,0,0.2)' : '#fafafa',
+});
+const btnRemoveStyle = (darkMode) => ({
+  padding: '4px 10px',
+  background: darkMode ? 'rgba(0,0,0,0.3)' : 'white',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.4)' : '1px solid #ccc',
+  borderRadius: 4, cursor: 'pointer', fontSize: 13,
+  color: darkMode ? '#c9a8ff' : '#666',
+});
 const confirmPopoverStyle = (darkMode) => ({
   position: 'absolute',
   bottom: 'calc(100% + 12px)',
-  left: 0,
   width: 240,
   padding: '12px 14px',
   borderRadius: 10,
@@ -466,7 +622,8 @@ const confirmPopoverStyle = (darkMode) => ({
 const confirmArrowStyle = (darkMode) => ({
   position: 'absolute',
   bottom: -7,
-  left: 24,
+  left: '50%',
+  marginLeft: -6,
   width: 12, height: 12,
   background: darkMode ? 'rgba(20, 8, 50, 0.97)' : '#fff',
   borderRight: darkMode ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid #ccc',
@@ -484,7 +641,6 @@ const draftBannerStyle = (darkMode) => ({
   border: darkMode ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid #fcd34d',
   color: darkMode ? '#fcd34d' : '#92400e',
 });
-
 const btnRestoreDraft = {
   padding: '6px 12px', background: '#7c3aed', color: 'white',
   border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600,
@@ -496,7 +652,6 @@ const btnDiscardDraft = (darkMode) => ({
   border: darkMode ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid #fcd34d',
   borderRadius: 6, cursor: 'pointer', fontSize: 13,
 });
-
 const confirmCancelBtn = (darkMode) => ({
   padding: '6px 14px',
   background: 'transparent',

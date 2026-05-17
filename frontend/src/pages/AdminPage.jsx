@@ -206,6 +206,10 @@ export default function AdminPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError]           = useState(null);
 
+  // Profesori (doar head admin)
+  const [teacherRequests, setTeacherRequests] = useState([]);
+  const [inviteCodes, setInviteCodes]         = useState([]);
+
   // Config sistem (doar head admin)
   const [systemConfig, setSystemConfig] = useState({ bypassEmailVerification: 'false', adminDeviceVerificationDays: '', banAutoDeleteDays: '' });
   const [configSaving, setConfigSaving] = useState(false);
@@ -261,7 +265,18 @@ export default function AdminPage() {
         banAutoDeleteDays: res.data.banAutoDeleteDays || '',
       }))
       .catch(() => {});
+    refreshTeacherData();
   }, [isHeadAdmin]);
+
+  function refreshTeacherData() {
+    if (!isHeadAdmin) return;
+    Promise.all([
+      api.get('/admin/teacher-requests'),
+      api.get('/admin/teacher-invite-codes'),
+    ])
+      .then(([r, c]) => { setTeacherRequests(r.data); setInviteCodes(c.data); })
+      .catch(() => {});
+  }
 
   async function restartServer() {
     if (!confirm('Repornești serverul? Apelurile în curs vor fi întrerupte pentru câteva secunde.')) return;
@@ -632,6 +647,16 @@ export default function AdminPage() {
             </span>
           )}
         </button>
+        {isHeadAdmin && (
+          <button onClick={() => setTab('teachers')} style={tab === 'teachers' ? activeTab : tabBtn}>
+            Profesori
+            {teacherRequests.filter(r => r.status === 'PENDING').length > 0 && (
+              <span style={{ marginLeft: 6, background: '#f59e0b', color: '#3b2a00', borderRadius: 10, padding: '1px 6px', fontSize: 11, fontWeight: 600 }}>
+                {teacherRequests.filter(r => r.status === 'PENDING').length}
+              </span>
+            )}
+          </button>
+        )}
         {isHeadAdmin && (
           <button onClick={() => setTab('system')} style={tab === 'system' ? activeTab : tabBtn}>
             Sistem
@@ -1103,6 +1128,16 @@ export default function AdminPage() {
         </>
       )}
 
+      {/* ── Profesori (head admin) ── */}
+      {tab === 'teachers' && isHeadAdmin && (
+        <TeachersPanel
+          requests={teacherRequests}
+          codes={inviteCodes}
+          darkMode={darkMode}
+          onRefresh={refreshTeacherData}
+        />
+      )}
+
       {/* ── Sistem (head admin) ── */}
       {tab === 'system' && isHeadAdmin && (
         <div style={{ maxWidth: 560 }}>
@@ -1381,6 +1416,319 @@ export default function AdminPage() {
 function Dash() {
   return <span style={{ color: '#bbb' }}>—</span>;
 }
+
+function TeachersPanel({ requests, codes, darkMode, onRefresh }) {
+  const [section, setSection] = useState('requests');
+  const [adminResponse, setAdminResponse] = useState({}); // requestId -> text
+  const [busy, setBusy] = useState(null);
+
+  // Generare cod
+  const [newNote, setNewNote] = useState('');
+  const [newMaxUses, setNewMaxUses] = useState(1);
+  const [newExpires, setNewExpires] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [lastCode, setLastCode] = useState(null);
+
+  async function handleApprove(id) {
+    setBusy(id);
+    try {
+      await api.post(`/admin/teacher-requests/${id}/approve`, {
+        adminResponse: adminResponse[id] || undefined,
+      });
+      onRefresh();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la aprobare');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function handleReject(id) {
+    if (!adminResponse[id]?.trim()) {
+      alert('Adaugă un motiv pentru respingere.');
+      return;
+    }
+    setBusy(id);
+    try {
+      await api.post(`/admin/teacher-requests/${id}/reject`, {
+        adminResponse: adminResponse[id],
+      });
+      onRefresh();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la respingere');
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function handleGenerate(e) {
+    e.preventDefault();
+    setGenerating(true);
+    setLastCode(null);
+    try {
+      const body = { note: newNote || undefined, maxUses: Number(newMaxUses) || 1 };
+      if (newExpires) body.expiresAt = new Date(newExpires).toISOString();
+      const { data } = await api.post('/admin/teacher-invite-codes', body);
+      setLastCode(data);
+      setNewNote(''); setNewMaxUses(1); setNewExpires('');
+      onRefresh();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la generare');
+    } finally {
+      setGenerating(false);
+    }
+  }
+  async function handleRevoke(id) {
+    if (!confirm('Revoci codul? Nu mai poate fi folosit, dar înregistrările existente rămân.')) return;
+    try {
+      await api.delete(`/admin/teacher-invite-codes/${id}`);
+      onRefresh();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Eroare la revocare');
+    }
+  }
+
+  const pending = requests.filter(r => r.status === 'PENDING');
+  const handled = requests.filter(r => r.status !== 'PENDING');
+
+  const backendOrigin = api.defaults.baseURL ? new URL(api.defaults.baseURL).origin : '';
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button onClick={() => setSection('requests')} style={section === 'requests' ? activeTab : tabBtn}>
+          Cereri ({requests.length})
+        </button>
+        <button onClick={() => setSection('codes')} style={section === 'codes' ? activeTab : tabBtn}>
+          Coduri invitație ({codes.length})
+        </button>
+      </div>
+
+      {section === 'requests' && (
+        <div>
+          <h3 style={{ margin: '0 0 10px' }}>În așteptare ({pending.length})</h3>
+          {pending.length === 0 ? (
+            <p style={{ color: darkMode ? '#a89bc4' : '#6b7280' }}>Nicio cerere de procesat.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {pending.map(r => (
+                <div key={r.id} style={requestCardStyle(darkMode)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div>
+                      <strong>{r.user.username}</strong>
+                      <span style={{ marginLeft: 8, color: darkMode ? '#a89bc4' : '#6b7280', fontSize: 13 }}>
+                        {r.user.email}
+                      </span>
+                      {r.user.school && (
+                        <span style={{ marginLeft: 8, fontSize: 13 }}>• {r.user.school}</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#6b7280' }}>
+                      {new Date(r.createdAt).toLocaleDateString('ro-RO')}
+                    </span>
+                  </div>
+                  <p style={{ margin: '10px 0', whiteSpace: 'pre-wrap', fontSize: 14 }}>
+                    {r.message}
+                  </p>
+                  {r.documentUrl && (
+                    <p style={{ margin: '4px 0 10px', fontSize: 13 }}>
+                      📎{' '}
+                      <a
+                        href={backendOrigin + r.documentUrl}
+                        target="_blank" rel="noopener noreferrer"
+                        style={{ color: darkMode ? '#c9a8ff' : '#6366f1', fontWeight: 600 }}
+                      >
+                        Vezi documentul atașat
+                      </a>
+                    </p>
+                  )}
+                  <textarea
+                    value={adminResponse[r.id] || ''}
+                    onChange={e => setAdminResponse(prev => ({ ...prev, [r.id]: e.target.value }))}
+                    rows={2}
+                    placeholder="Mesaj pentru utilizator (obligatoriu la respingere, opțional la aprobare)"
+                    style={textareaInline(darkMode)}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button onClick={() => handleApprove(r.id)} disabled={busy === r.id} style={approveBtn}>
+                      ✓ Aprobă
+                    </button>
+                    <button onClick={() => handleReject(r.id)} disabled={busy === r.id} style={rejectBtn}>
+                      ✗ Respinge
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {handled.length > 0 && (
+            <>
+              <h3 style={{ margin: '24px 0 10px' }}>Procesate ({handled.length})</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {handled.map(r => (
+                  <div key={r.id} style={handledRowStyle(r.status, darkMode)}>
+                    <strong>{r.user.username}</strong>
+                    <span style={{ marginLeft: 8, fontSize: 12 }}>
+                      {r.status === 'APPROVED' ? '✓ Aprobat' : '✗ Respins'}
+                    </span>
+                    {r.reviewedAt && (
+                      <span style={{ marginLeft: 8, fontSize: 11, color: darkMode ? '#a89bc4' : '#6b7280' }}>
+                        {new Date(r.reviewedAt).toLocaleDateString('ro-RO')}
+                      </span>
+                    )}
+                    {r.adminResponse && (
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: darkMode ? '#d4c8ff' : '#374151' }}>
+                        „{r.adminResponse}"
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {section === 'codes' && (
+        <div>
+          <form onSubmit={handleGenerate} style={generateFormStyle(darkMode)}>
+            <h3 style={{ margin: '0 0 10px' }}>Generează cod nou</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <input
+                value={newNote}
+                onChange={e => setNewNote(e.target.value)}
+                placeholder="Descriere internă (ex: pentru profesorii de la CN X)"
+                style={inputStyle}
+              />
+              <input
+                type="number" min={1} max={1000}
+                value={newMaxUses}
+                onChange={e => setNewMaxUses(e.target.value)}
+                placeholder="Folosiri max"
+                style={inputStyle}
+              />
+              <input
+                type="date"
+                value={newExpires}
+                onChange={e => setNewExpires(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+            <button type="submit" disabled={generating} style={btnPrimary}>
+              {generating ? 'Se generează...' : 'Generează cod'}
+            </button>
+            {lastCode && (
+              <div style={generatedCodeStyle(darkMode)}>
+                <strong>Cod nou:</strong>{' '}
+                <code style={{ fontSize: 18, letterSpacing: 2, fontFamily: 'monospace' }}>
+                  {lastCode.code}
+                </code>
+                <p style={{ margin: '6px 0 0', fontSize: 12, color: darkMode ? '#a89bc4' : '#6b7280' }}>
+                  Copiază-l și trimite-l profesorului. Apare în listă mai jos.
+                </p>
+              </div>
+            )}
+          </form>
+
+          <h3 style={{ margin: '20px 0 10px' }}>Coduri existente</h3>
+          {codes.length === 0 ? (
+            <p style={{ color: darkMode ? '#a89bc4' : '#6b7280' }}>Niciun cod generat.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <Th>Cod</Th><Th>Descriere</Th><Th>Folosiri</Th>
+                    <Th>Expiră</Th><Th>Status</Th><Th>Acțiuni</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {codes.map(c => {
+                    const expired = c.expiresAt && new Date(c.expiresAt) < new Date();
+                    const exhausted = c.usedCount >= c.maxUses;
+                    const status = c.revokedAt ? 'revocat' : expired ? 'expirat' : exhausted ? 'epuizat' : 'activ';
+                    const statusColor =
+                      status === 'activ'   ? (darkMode ? '#6ee7b7' : '#065f46') :
+                      status === 'revocat' ? (darkMode ? '#fca5a5' : '#991b1b') :
+                                             (darkMode ? '#a89bc4' : '#6b7280');
+                    return (
+                      <tr key={c.id}>
+                        <Td>
+                          <code style={{ fontFamily: 'monospace', fontWeight: 600 }}>{c.code}</code>
+                        </Td>
+                        <Td>{c.note || <Dash />}</Td>
+                        <Td>{c.usedCount} / {c.maxUses}</Td>
+                        <Td>
+                          {c.expiresAt
+                            ? new Date(c.expiresAt).toLocaleDateString('ro-RO')
+                            : <Dash />}
+                        </Td>
+                        <Td>
+                          <span style={{ color: statusColor, fontWeight: 600, fontSize: 12 }}>
+                            {status}
+                          </span>
+                        </Td>
+                        <Td>
+                          {!c.revokedAt && (
+                            <button onClick={() => handleRevoke(c.id)} style={btnRevokeStyle}>
+                              Revocă
+                            </button>
+                          )}
+                        </Td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const requestCardStyle = (darkMode) => ({
+  padding: 14, borderRadius: 8,
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid #e5e7eb',
+  background: darkMode ? 'rgba(20, 8, 50, 0.4)' : 'rgba(255, 255, 255, 0.7)',
+});
+const textareaInline = (darkMode) => ({
+  width: '100%', padding: 8, borderRadius: 6, fontSize: 13, fontFamily: 'inherit',
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.35)' : '1px solid #d1d5db',
+  background: darkMode ? 'rgba(0,0,0,0.25)' : '#fff',
+  color: darkMode ? '#e8e0ff' : '#222',
+  resize: 'vertical', boxSizing: 'border-box',
+});
+const approveBtn = {
+  padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+  background: '#16a34a', color: 'white', border: 'none',
+};
+const rejectBtn = {
+  padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+  background: '#dc2626', color: 'white', border: 'none',
+};
+const handledRowStyle = (status, darkMode) => ({
+  padding: '8px 12px', borderRadius: 6,
+  background: status === 'APPROVED'
+    ? (darkMode ? 'rgba(16, 185, 129, 0.08)' : '#ecfdf5')
+    : (darkMode ? 'rgba(220, 38, 38, 0.08)' : '#fef2f2'),
+  borderLeft: status === 'APPROVED' ? '3px solid #16a34a' : '3px solid #dc2626',
+});
+const generateFormStyle = (darkMode) => ({
+  padding: 14, borderRadius: 10,
+  border: darkMode ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid #e5e7eb',
+  background: darkMode ? 'rgba(20, 8, 50, 0.35)' : 'rgba(255, 255, 255, 0.6)',
+});
+const generatedCodeStyle = (darkMode) => ({
+  marginTop: 12, padding: 12, borderRadius: 8,
+  background: darkMode ? 'rgba(16, 185, 129, 0.12)' : '#d1fae5',
+  border: darkMode ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #34d399',
+  color: darkMode ? '#6ee7b7' : '#065f46',
+});
+const btnRevokeStyle = {
+  padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 12,
+  background: 'transparent', color: '#dc2626', border: '1px solid #dc2626',
+};
 
 const tableStyle   = { width: '100%', borderCollapse: 'collapse' };
 const tabBtn       = { padding: '8px 18px', border: '1px solid rgba(168, 85, 247, 0.4)', borderRadius: 4, background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: 14 };

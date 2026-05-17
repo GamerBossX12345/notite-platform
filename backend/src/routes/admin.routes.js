@@ -65,6 +65,11 @@ router.post('/teacher-requests/:id/approve',   requireHeadAdmin, teacherControll
 router.post('/teacher-requests/:id/reject',    requireHeadAdmin, teacherController.reject);
 router.patch('/users/:id/teacher',             requireHeadAdmin, teacherController.setTeacherManual);
 
+// Teacher invite codes — head admin generează / listează / revocă
+router.get('/teacher-invite-codes',            requireHeadAdmin, teacherController.listInviteCodes);
+router.post('/teacher-invite-codes',           requireHeadAdmin, teacherController.createInviteCode);
+router.delete('/teacher-invite-codes/:id',     requireHeadAdmin, teacherController.revokeInviteCode);
+
 // Audit log — head admin vede toate intrările
 router.get('/audit-log',  requireHeadAdmin, auditController.listAll);
 

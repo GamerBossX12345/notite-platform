@@ -38,15 +38,17 @@ export default function Leaderboard({ featuredAuthor }) {
 
   if (entries.length === 0 && !featured) return null;
 
+  // În repaus, leaderboard-ul stă foarte discret (30% vizibil) ca să nu acopere
+  // conținutul; la hover revine complet (1.0) — vezi regula CSS din index.css.
   const wrapperStyle = {
     ...containerStyle(darkMode),
-    opacity: leaderboardHidden ? 0 : 1,
+    opacity: leaderboardHidden ? 0 : 0.3,
     pointerEvents: leaderboardHidden ? 'none' : 'auto',
     transition: 'opacity 0.3s ease, background 0.4s ease, color 0.4s ease, border-color 0.4s ease',
   };
 
   return (
-    <div style={wrapperStyle} aria-hidden={leaderboardHidden}>
+    <div className="leaderboard-wrapper" style={wrapperStyle} aria-hidden={leaderboardHidden}>
       {featured && (
         <>
           <h4 style={sectionLabelStyle}>Autorul:</h4>
