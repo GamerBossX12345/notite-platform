@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
+import { TeacherBadge } from './Badges.jsx';
 
 const RANK_MEDALS = ['🥇', '🥈', '🥉'];
 
@@ -59,8 +60,9 @@ export default function Leaderboard({ featuredAuthor }) {
           >
             <div style={featuredStyle(darkMode)}>
               <span style={{ fontSize: 14 }}>✨</span>
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700 }}>
-                {featured.username}
+              <span style={{ flex: 1, display: 'inline-flex', alignItems: 'center', overflow: 'hidden', whiteSpace: 'nowrap', fontWeight: 700 }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{featured.username}</span>
+                {featured.isTeacher && <TeacherBadge size={12} />}
               </span>
               {featured.noteCount != null && (
                 <span style={{ fontSize: 11, opacity: 0.85, flexShrink: 0 }}>
@@ -84,9 +86,10 @@ export default function Leaderboard({ featuredAuthor }) {
               </span>
               <Link
                 to={`/profile/${entry.username}`}
-                style={{ flex: 1, color: podium ? podium.text : 'inherit', textDecoration: 'none', fontSize: 13, fontWeight: podium ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                style={{ flex: 1, display: 'inline-flex', alignItems: 'center', color: podium ? podium.text : 'inherit', textDecoration: 'none', fontSize: 13, fontWeight: podium ? 700 : 400, overflow: 'hidden', whiteSpace: 'nowrap', minWidth: 0 }}
               >
-                {entry.username}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.username}</span>
+                {entry.isTeacher && <TeacherBadge size={11} />}
               </Link>
               <span style={{ fontSize: 11, opacity: podium ? 0.85 : 0.65, flexShrink: 0, color: podium ? podium.text : 'inherit' }}>
                 {entry.noteCount}

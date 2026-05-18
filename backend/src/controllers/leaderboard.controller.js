@@ -11,6 +11,7 @@ export async function getLeaderboard(req, res, next) {
         username: true,
         name: true,
         reputation: true,
+        isTeacher: true,
         _count: { select: { notes: true } },
       },
       where: {
@@ -29,6 +30,7 @@ export async function getLeaderboard(req, res, next) {
       name: u.name,
       noteCount: u._count.notes,
       reputation: u.reputation,
+      isTeacher: u.isTeacher,
     }));
 
     res.json(leaderboard);

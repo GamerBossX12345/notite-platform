@@ -6,6 +6,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth.routes.js';
@@ -20,10 +21,24 @@ dotenv.config(); // încarcă .env în process.env
 
 const app = express();
 
-// CORS — permite requests de la frontend (alt origin: localhost:5173).
-// În producție, configurează doar domeniile permise:
-//   app.use(cors({ origin: 'https://site-ul-tau.ro' }));
-app.use(cors());
+// Helmet — adaugă headerele standard de securitate (X-Frame-Options,
+// Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy etc.).
+// `crossOriginResourcePolicy` setat pe `cross-origin` ca să nu blocăm
+// fișierele din /uploads pentru frontend-ul de pe alt origin în dev.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  // CSP-ul default al helmet e prea agresiv pentru API; îl lăsăm pe frontend
+  // să-și seteze propriul CSP în <meta>, dacă e nevoie.
+  contentSecurityPolicy: false,
+}));
+
+// CORS — permite requests de la frontend. În prod, restrictioneaza la
+// domeniul concret (ex: FRONTEND_URL din .env).
+const corsOrigin = process.env.FRONTEND_URL || true;
+app.use(cors({
+  origin: corsOrigin,
+  credentials: true,
+}));
 
 // Parser JSON pentru req.body
 app.use(express.json({ limit: '10mb' })); // 10mb pentru notițe cu imagini base64

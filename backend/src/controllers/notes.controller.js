@@ -8,6 +8,7 @@ import { generateEmbedding, noteToText } from '../services/embedding.service.js'
 import { moderateReport } from '../services/moderation.service.js';
 import { resolveTagIds } from './tags.controller.js';
 import { extractAndStoreForNote } from '../services/documentText.service.js';
+import { sanitizeTipTapDoc } from '../services/sanitize.service.js';
 
 // Acceptă tags ca array sau ca string JSON (din FormData).
 function parseTagsFromBody(raw) {
@@ -221,6 +222,10 @@ export async function create(req, res, next) {
     if (req.body.content) {
       try { content = JSON.parse(req.body.content); } catch { content = null; }
     }
+    // Sanitizare TipTap doc — scoate noduri/marks/atribute necunoscute, validează
+    // URL-uri pe image/youtube/link. Previne XSS dacă într-o zi se va switch-a
+    // la un renderer mai laxist (sau pe alte clienți: mobile etc.).
+    if (content) content = sanitizeTipTapDoc(content);
 
     const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -308,7 +313,7 @@ export async function update(req, res, next) {
     if (validated.subject !== undefined) data.subject = validated.subject;
     if (validated.gradeLevel !== undefined) data.gradeLevel = validated.gradeLevel;
     if (validated.type !== undefined) data.type = validated.type;
-    if (content !== undefined) data.content = content;
+    if (content !== undefined) data.content = content ? sanitizeTipTapDoc(content) : content;
 
     // Înlocuire fișier
     if (req.file) {

@@ -205,7 +205,7 @@ export async function listPublicUsers(req, res, next) {
         select: {
           id: true, username: true, name: true, showName: true,
           school: true, showSchool: true, grade: true, showGrade: true,
-          reputation: true, role: true, createdAt: true,
+          reputation: true, role: true, isTeacher: true, createdAt: true,
           _count: { select: { notes: true, actionedReports: true } },
         },
       });
@@ -261,7 +261,7 @@ export async function listPublicUsers(req, res, next) {
         select: {
           id: true, username: true, name: true, showName: true,
           school: true, showSchool: true, grade: true, showGrade: true,
-          reputation: true, role: true, createdAt: true,
+          reputation: true, role: true, isTeacher: true, createdAt: true,
           _count: { select: { notes: true } },
         },
       }),
@@ -293,6 +293,7 @@ export async function getPublicProfile(req, res, next) {
         school: true, showSchool: true, grade: true, showGrade: true,
         bio: true, reputation: true, createdAt: true,
         banCount: true,
+        isTeacher: true, teacherVerifiedAt: true,
       },
     });
     if (!user) throw new AppError('Utilizator inexistent', 404);

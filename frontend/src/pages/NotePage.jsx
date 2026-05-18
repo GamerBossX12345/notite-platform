@@ -348,7 +348,11 @@ export default function NotePage() {
           <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
             {canEdit && (
               <button onClick={() => setEditing(true)} style={btnSecondary(darkMode)}>
-                {isAuthor ? 'Editează' : 'Editează (profesor)'}
+                {isAuthor
+                  ? 'Editează'
+                  : isAdmin
+                  ? 'Editează (admin)'
+                  : 'Editează (profesor)'}
               </button>
             )}
             {canDelete && (

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth.js';
 import { api } from '../api/client.js';
@@ -132,16 +133,24 @@ function Empty({ label }) {
 }
 
 function AIVerdictBadge({ verdict, text, darkMode }) {
-  const [open, setOpen] = useState(false);
   const v = aiVerdictStyle(verdict, darkMode);
   const hasText = !!text;
+  const badgeRef = useRef(null);
+  const [coords, setCoords] = useState(null); // {top, left} sau null când e închis
+
+  function openTooltip() {
+    if (!hasText || !badgeRef.current) return;
+    const r = badgeRef.current.getBoundingClientRect();
+    setCoords({ top: r.bottom + 6, left: r.left });
+  }
+  function closeTooltip() { setCoords(null); }
+
   return (
-    <span
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      style={{ position: 'relative', display: 'inline-block' }}
-    >
+    <>
       <span
+        ref={badgeRef}
+        onMouseEnter={openTooltip}
+        onMouseLeave={closeTooltip}
         style={{
           ...badgeBase,
           background: v.background, color: v.color, border: v.border,
@@ -151,26 +160,31 @@ function AIVerdictBadge({ verdict, text, darkMode }) {
       >
         {v.label}
       </span>
-      {open && hasText && (
+      {coords && createPortal(
+        // Atasat la document.body via portal — iese din overflow:auto al tabelului
+        // si nu mai e clipat. position: fixed folosește coordonatele de viewport.
         <div
           style={{
-            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 50,
-            minWidth: 220, maxWidth: 320,
+            position: 'fixed',
+            top: coords.top, left: coords.left,
+            zIndex: 2000,
+            minWidth: 220, maxWidth: 360,
             padding: '10px 12px', borderRadius: 8,
             background: darkMode ? 'rgba(30, 15, 55, 0.97)' : '#ffffff',
             color: darkMode ? '#e8e0ff' : '#222',
             border: darkMode ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(0, 0, 0, 0.12)',
             boxShadow: darkMode ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.15)',
-            fontSize: 12, lineHeight: 1.5, whiteSpace: 'normal',
+            fontSize: 12, lineHeight: 1.5, whiteSpace: 'normal', pointerEvents: 'none',
           }}
         >
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, color: v.color, marginBottom: 4 }}>
             Motivul AI
           </div>
           {text}
-        </div>
+        </div>,
+        document.body
       )}
-    </span>
+    </>
   );
 }
 
@@ -178,6 +192,9 @@ const ROLE_BADGE = {
   HEAD_ADMIN: { label: 'Head Admin', bg: '#7c3aed', color: 'white' },
   ADMIN:      { label: 'Admin',      bg: '#f59e0b', color: '#3b2a00' },
 };
+// Profesorul nu e propriu-zis un Role (e o bifa separată isTeacher), dar îl
+// tratăm vizual ca pe un rol — badge albastru, în paralel cu Admin/Head Admin.
+const TEACHER_BADGE = { label: 'Profesor', bg: '#3b82f6', color: 'white' };
 
 const APPEAL_STATUS = {
   PENDING:  { label: 'În așteptare', bg: '#f59e0b' },
@@ -185,9 +202,10 @@ const APPEAL_STATUS = {
   RESOLVED: { label: 'Soluționat',   bg: '#10b981' },
 };
 
-function roleRowTint(role, darkMode) {
+function roleRowTint(role, darkMode, isTeacher) {
   if (role === 'HEAD_ADMIN') return darkMode ? 'rgba(124, 58, 237, 0.15)' : '#f3e8ff';
   if (role === 'ADMIN')      return darkMode ? 'rgba(245, 158, 11, 0.12)' : '#fff7e0';
+  if (isTeacher)             return darkMode ? 'rgba(59, 130, 246, 0.12)' : '#e0f2fe';
   return 'transparent';
 }
 
@@ -680,10 +698,12 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {filteredUsers.map(u => {
-                    const badge = ROLE_BADGE[u.role];
+                    // Admin/Head Admin au prioritate; altfel afișăm Profesor dacă
+                    // e cazul; altfel utilizator normal.
+                    const badge = ROLE_BADGE[u.role] || (u.isTeacher ? TEACHER_BADGE : null);
                     const isSelf = u.id === user.id;
                     return (
-                      <tr key={u.id} style={{ background: roleRowTint(u.role, darkMode) }}>
+                      <tr key={u.id} style={{ background: roleRowTint(u.role, darkMode, u.isTeacher) }}>
                         <Td>{u.name || <Dash />}</Td>
                         <Td><strong>{u.username}</strong></Td>
                         <Td>

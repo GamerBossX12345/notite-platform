@@ -15,6 +15,8 @@ import VerifyDevicePage from './pages/VerifyDevicePage.jsx';
 import SavedPage from './pages/SavedPage.jsx';
 import PublicAppealsPage from './pages/PublicAppealsPage.jsx';
 import MyActivityPage from './pages/MyActivityPage.jsx';
+import HistoryPage from './pages/HistoryPage.jsx';
+import RulesPage from './pages/RulesPage.jsx';
 import FlashcardsPage from './pages/FlashcardsPage.jsx';
 import FlashcardsStudyPage from './pages/FlashcardsStudyPage.jsx';
 import TrendingPage from './pages/TrendingPage.jsx';
@@ -43,6 +45,8 @@ export default function App() {
             <Route path="/saved" element={<SavedPage />} />
             <Route path="/appeals/public" element={<PublicAppealsPage />} />
             <Route path="/activity" element={<MyActivityPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/rules" element={<RulesPage />} />
             <Route path="/flashcards" element={<FlashcardsPage />} />
             <Route path="/flashcards/study" element={<FlashcardsStudyPage />} />
             <Route path="/trending" element={<TrendingPage />} />

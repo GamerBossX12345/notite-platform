@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../api/client.js';
+import { TeacherBadge } from '../components/Badges.jsx';
 
 const TOP_MEDALS = {
   1: { emoji: '🥇', label: 'Top 1', color: '#f59e0b' },
@@ -58,7 +59,10 @@ export default function ProfilePage() {
         </div>
       )}
       <h1 style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span>{displayName}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          {displayName}
+          {profile.isTeacher && <TeacherBadge size={22} />}
+        </span>
         {medal && (
           <span
             title={`${medal.label} pe leaderboard (cele mai multe notițe)`}

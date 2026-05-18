@@ -29,7 +29,8 @@
       "Bash(node --check src/controllers/requests.controller.js)",
       "Bash(node --check src/routes/requests.routes.js)",
       "Bash(node --check src/middleware/auth.js)",
-      "Bash(node --check src/controllers/chat.controller.js)"
+      "Bash(node --check src/controllers/chat.controller.js)",
+      "Bash(npx vitest *)"
     ]
   }
 }

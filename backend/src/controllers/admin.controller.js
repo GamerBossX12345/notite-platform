@@ -22,6 +22,8 @@ export async function listUsers(req, res, next) {
         school: true,
         grade: true,
         role: true,
+        isTeacher: true,
+        teacherVerifiedAt: true,
         reputation: true,
         suspendedUntil: true,
         createdAt: true,

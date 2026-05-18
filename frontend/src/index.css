@@ -260,16 +260,15 @@ select option {
 
 /* ── Stele in dark mode ──────────────────────────────────────────────────────
    Sunt randate in body::after, deasupra orbilor din body::before (acelasi
-   z-index, dar ::after se pictează după ::before). Lista de pozitii e fixă;
-   animația controlează doar opacitatea pentru un efect de scintilatie. */
+   z-index, dar ::after se pictează după ::before). Statice — fără twinkle
+   sau drift, ca să nu adăuge overhead pe paint. */
 body::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  background-repeat: repeat;
-  background-size: 100vw 100vh;
+  background-repeat: no-repeat;
   background-image:
     radial-gradient(3px 3px     at  3% 12%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%),
     radial-gradient(2.5px 2.5px at 11%  6%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
@@ -301,39 +300,29 @@ body::after {
     radial-gradient(3.5px 3.5px at 72% 88%, #fff, rgba(255,255,255,0.75) 28%, rgba(255,255,255,0.3) 55%, transparent 80%),
     radial-gradient(2.5px 2.5px at 84% 76%, #fff, rgba(255,255,255,0.6) 35%, rgba(255,255,255,0.2)  60%, transparent 80%),
     radial-gradient(3px 3px     at 94% 90%, #fff, rgba(255,255,255,0.7) 30%, rgba(255,255,255,0.25) 55%, transparent 80%);
-  animation:
-    starTwinkle 5.5s ease-in-out infinite,
-    starDrift   150s linear        infinite;
+  animation: starTwinkle 3.5s ease-in-out infinite;
 }
 
-/* Cât timp userul mișcă cursorul / tastează / scrollează — ascundem și pauzăm
-   stratul decorativ. După 5s de inactivitate revine. Reduce „lag-ul" la
-   interacțiune (animațiile constante consumă semnificativ pe paint). */
+/* Twinkle = pulsare de opacitate + strălucire (drop-shadow). Fără translații
+   = fără reflow, doar repaint pe ::after. Range mai amplu de luminozitate
+   pentru un efect vizibil de „sclipire". */
+@keyframes starTwinkle {
+  0%, 100% { opacity: 1;    filter: brightness(1.3) drop-shadow(0 0 5px rgba(255,255,255,0.9)); }
+  50%      { opacity: 0.65; filter: brightness(0.7) drop-shadow(0 0 1px rgba(255,255,255,0.3)); }
+}
+
 /* Cât timp există o altă animație vizibilă pe pagină (hover pe card sau pe
-   butonul de publicare = wiggle continuu), pauzăm twinkle+drift (dark) și
-   rotația soarelui (light) — dar nu le ascundem. Reduce overhead-ul fără
-   să schimbe atmosfera vizuală. `:has()` testează arborele și activează
-   regula la fiecare hover; nu depinde de mișcarea cursorului. */
+   butonul de publicare = wiggle continuu), pauzăm rotația soarelui (light
+   mode) și sclipirea stelelor (dark) ca să nu suprapunem animații. */
 body:has(.note-card:hover)::after,
 body:has(.publish-btn:hover)::after {
-  /* !important ca să bată regulile de tema (light mode body::after pentru soare,
-     definit mai jos cu specificitate egală) — altfel rotația soarelui ar
-     continua. */
+  /* !important ca să bată regula de tema (light mode body::after) cu
+     specificitate egală — altfel rotația soarelui ar continua. */
   animation-play-state: paused !important;
-}
-
-@keyframes starTwinkle {
-  0%, 100% { opacity: 1;    filter: brightness(1.1) drop-shadow(0 0 3px rgba(255,255,255,0.7)); }
-  50%      { opacity: 0.78; filter: brightness(0.85) drop-shadow(0 0 1.5px rgba(255,255,255,0.5)); }
 }
 
 /* Drift orizontal lent — fundalul se deplaseaza cu o placă întreagă (100vw)
    într-un ciclu; cum placa se repetă identic, sare-loopul e invizibil. */
-@keyframes starDrift {
-  from { background-position-x: 0vw;   }
-  to   { background-position-x: 100vw; }
-}
-
 /* Light Mode */
 [data-theme="light"] {
   color-scheme: light;
@@ -546,5 +535,83 @@ body:has(.publish-btn:hover)::after {
 
   @page {
     margin: 1.6cm;
+  }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────
+   Stilurile inline din componente nu se pot interoga ușor cu media queries,
+   așa că adăugăm aici reguli pe selectori semantici (nav, aside, .responsive-*)
+   care suprascriu unde e nevoie. */
+
+/* Tabletă & sub */
+@media (max-width: 900px) {
+  /* Header — buton mai mic, gap mai strâns, badge-uri pe wrap */
+  nav {
+    flex-wrap: wrap;
+    gap: 8px !important;
+    padding: 10px 14px !important;
+    row-gap: 6px;
+  }
+  nav > span {
+    /* „Salut, Nume" — îl ascundem pe mobil ca să nu strângă headerul */
+    display: none;
+  }
+
+  /* Main: padding mai mic pe mobil */
+  main {
+    padding: 16px 14px !important;
+  }
+
+  /* Settings page: layout-ul flex orizontal (tab-uri stânga + conținut dreapta)
+     devine coloană pe mobil; tab-urile redevin orizontale + scrollable. */
+  .responsive-settings-layout {
+    flex-direction: column !important;
+  }
+  .responsive-settings-tabs {
+    flex-direction: row !important;
+    width: 100% !important;
+    overflow-x: auto;
+    white-space: nowrap;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(120, 60, 160, 0.2) !important;
+    padding-right: 0 !important;
+    padding-bottom: 8px;
+  }
+  .responsive-settings-tabs button {
+    border-left: 3px solid transparent !important;
+    flex-shrink: 0;
+  }
+
+  /* Admin: tabel cu scroll orizontal pentru rândurile lungi */
+  table {
+    font-size: 12px !important;
+  }
+}
+
+/* Mobile mic (iPhone SE etc.) */
+@media (max-width: 600px) {
+  h1 {
+    font-size: 28px !important;
+    margin: 16px 0 !important;
+  }
+  h2 {
+    font-size: 18px !important;
+  }
+
+  /* Grids de carduri devin coloană single */
+  .responsive-cards-grid,
+  .note-card-list {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Sidebar de filtre (HomePage) ocupă toată lățimea */
+  .responsive-filter-sidebar {
+    width: 100% !important;
+    max-width: 320px;
+  }
+
+  /* Footer cu detalii — coloanele se aliniază sub */
+  footer + section > div > div:first-child {
+    grid-template-columns: 1fr !important;
   }
 }

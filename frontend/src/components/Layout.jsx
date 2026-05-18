@@ -2,13 +2,29 @@
 // <Outlet /> e locul unde React Router pune componenta paginii curente.
 
 import { createPortal } from 'react-dom';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function Layout() {
   const { user, logout, darkMode, updateDarkMode, sidebarOpen, setSidebarOpen, mainMenuOpen, setMainMenuOpen, leaderboardHidden, setLeaderboardHidden } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Filtrele au sens doar pe pagina principală (listing-ul de notițe).
+  const isHomePage = location.pathname === '/';
+
+  // Accesibilitate: Esc închide drawer-ul/sidebar-ul deschis. Folosit împreună
+  // cu aria-* pe drawer pentru screen readers și navigare cu tastatura.
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== 'Escape') return;
+      if (mainMenuOpen) setMainMenuOpen(false);
+      else if (sidebarOpen) setSidebarOpen(false);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mainMenuOpen, sidebarOpen, setMainMenuOpen, setSidebarOpen]);
 
   function handleLogout() {
     logout();
@@ -49,6 +65,8 @@ export default function Layout() {
           <button
             onClick={() => setMainMenuOpen(true)}
             title="Meniu"
+            aria-label="Deschide meniul principal"
+            aria-expanded={mainMenuOpen}
             style={menuToggleStyle(darkMode)}
           >
             ☰
@@ -76,19 +94,17 @@ export default function Layout() {
                 {user.name || user.username}
               </Link>
             </span>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              title={sidebarOpen ? 'Închide bara laterală' : 'Deschide bara laterală'}
-              style={{ ...btnStyle, padding: '6px 10px' }}
-            >
-              ☰ Filtre
-            </button>
-            <Link to="/upload" style={linkStyle}>+ Notiță</Link>
-            <Link to="/saved" style={linkStyle} title="Notițe salvate">❤️</Link>
-            <Link to="/settings" style={linkStyle}>Setări</Link>
-            {(user.role === 'ADMIN' || user.role === 'HEAD_ADMIN') && (
-              <Link to="/admin" style={{ ...linkStyle, color: user.role === 'HEAD_ADMIN' ? '#9333ea' : '#cc6600' }}>⚙ Admin</Link>
+            {isHomePage && (
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                title={sidebarOpen ? 'Închide bara laterală' : 'Deschide bara laterală'}
+                style={{ ...btnStyle, padding: '6px 10px' }}
+              >
+                ☰ Filtre
+              </button>
             )}
+            <Link to="/saved" style={linkStyle} title="Notițe salvate" aria-label="Notițe salvate">❤️</Link>
+            {/* Setări + Admin sunt accesibile din meniul lateral (☰) ca să curățăm header-ul. */}
             <button onClick={handleLogout} style={btnStyle}>Logout</button>
           </>
           )
@@ -101,19 +117,33 @@ export default function Layout() {
         <button
           onClick={() => updateDarkMode(!darkMode)}
           title={darkMode ? 'Treci la modul luminos' : 'Treci la modul întunecat'}
+          aria-label={darkMode ? 'Treci la modul luminos' : 'Treci la modul întunecat'}
+          aria-pressed={!darkMode}
           style={toggleStyle}
         >
           {darkMode ? '🌙' : '☀️'}
         </button>
       </nav>
-      {/* Main menu drawer */}
-      {user && mainMenuOpen && (
+      {/* Main menu drawer — randat prin portal direct pe body, ca să scape de
+         containing block-ul creat de `backdrop-filter` pe #root. Altfel
+         `position: fixed` s-ar ancora la #root (în flux) și ar scrolla cu
+         pagina. „Fixed" în sensul că rămâne deschis până la click pe ✕. */}
+      {user && mainMenuOpen && createPortal(
         <>
-          <div onClick={() => setMainMenuOpen(false)} style={menuOverlayStyle} />
-          <aside style={menuDrawerStyle(darkMode)}>
+          <div style={menuOverlayStyle} aria-hidden="true" />
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="Meniu principal"
+            style={menuDrawerStyle(darkMode)}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <h3 style={{ margin: 0, fontSize: 16 }}>Meniu</h3>
-              <button onClick={() => setMainMenuOpen(false)} style={menuCloseBtnStyle}>✕</button>
+              <button
+                onClick={() => setMainMenuOpen(false)}
+                aria-label="Închide meniul (Esc)"
+                style={menuCloseBtnStyle}
+              >✕</button>
             </div>
 
             <div style={menuSectionStyle}>
@@ -122,9 +152,9 @@ export default function Layout() {
               <MenuItem icon="🙋" label="Cereri de notițe" onClick={() => go('/requests')} />
               <MenuItem icon="📓" label="Notițele mele"    onClick={() => go(`/profile/${user.username}`)} />
               <MenuItem icon="❤️" label="Salvate"           onClick={() => go('/saved')} />
+              <MenuItem icon="📖" label="Istoric notițe"   onClick={() => go('/history')} />
               <MenuItem icon="🎴" label="Flashcards"        onClick={() => go('/flashcards')} />
               <MenuItem icon="📋" label="Activitate cont"  onClick={() => go('/activity')} />
-              <MenuItem icon="📜" label="Apeluri publice"  onClick={() => go('/appeals/public')} />
               <MenuItem icon="✏️" label="Adaugă notiță"   onClick={() => go('/upload')} />
               <MenuItem icon="👥" label="Toți utilizatorii" onClick={() => go('/users')} />
             </div>
@@ -145,19 +175,46 @@ export default function Layout() {
               <MenuItem icon="🚪" label="Logout" onClick={handleLogout} color="#dc2626" />
             </div>
           </aside>
-        </>
+        </>,
+        document.body
       )}
 
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 96px', position: 'relative', zIndex: 2 }}>
-        <Outlet />
-      </main>
-      {createPortal(
+      {/* Wrapper care conține main + footer-ul sticky. Folosim `flex: 1` ca
+         wrapper-ul să umple ecranul pe pagini scurte (footer-ul rămâne pinned
+         la jos), iar `sticky bottom: 0` îl ține fixat în viewport cât scrollezi
+         prin main; când scrollezi în secțiunea de detalii (în afara wrapper-ului),
+         footer-ul se „eliberează" și urcă natural cu pagina. */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 24px', position: 'relative', zIndex: 2, width: '100%', boxSizing: 'border-box', flex: 1 }}>
+          <Outlet />
+        </main>
         <footer style={footerStyle(darkMode)}>
+          {user && !user.banned && (
+            <Link
+              to="/upload"
+              title="Adaugă o notiță nouă"
+              aria-label="Adaugă o notiță nouă"
+              style={{ ...toggleStyle, textDecoration: 'none' }}
+            >
+              {/* SVG cu cele două linii — perfect centrat geometric. „+" ca text
+                 e împins vizual mai sus de metricile fontului. */}
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" style={{ display: 'block' }}>
+                <path
+                  d="M8 2.5v11M2.5 8h11"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </Link>
+          )}
           <div style={{ flex: 1 }} />
           {user && (
             <button
               onClick={() => setLeaderboardHidden(!leaderboardHidden)}
               title={leaderboardHidden ? 'Afișează leaderboardul' : 'Ascunde leaderboardul'}
+              aria-label={leaderboardHidden ? 'Afișează leaderboardul' : 'Ascunde leaderboardul'}
+              aria-pressed={leaderboardHidden}
               style={leaderboardHidden
                 ? { ...themeToggleStyle, border: '1px solid rgba(220, 38, 38, 0.55)', background: 'rgba(220, 38, 38, 0.25)', color: '#fca5a5' }
                 : toggleStyle}
@@ -165,10 +222,56 @@ export default function Layout() {
               🏆
             </button>
           )}
-        </footer>,
-        document.body
-      )}
+        </footer>
+      </div>
+
+      <SiteDetails darkMode={darkMode} />
     </div>
+  );
+}
+
+function SiteDetails({ darkMode }) {
+  return (
+    <section style={siteDetailsStyle(darkMode)}>
+      <div style={siteDetailsInner}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24, marginBottom: 24 }}>
+          <div>
+            <h3 style={detailsTitleStyle}>📚 Notițe</h3>
+            <p style={detailsTextStyle(darkMode)}>
+              Platformă de notițe colaborative pentru elevi de gimnaziu și liceu.
+              Publică, evaluează, salvează și învață împreună.
+            </p>
+          </div>
+          <div>
+            <h3 style={detailsTitleStyle}>Funcții</h3>
+            <ul style={detailsListStyle(darkMode)}>
+              <li>Quiz și flashcards generate AI</li>
+              <li>Chat AI personal pe fiecare notiță</li>
+              <li>Căutare semantică prin embeddings</li>
+              <li>Validare de la profesori verificați</li>
+            </ul>
+          </div>
+          <div>
+            <h3 style={detailsTitleStyle}>Comunitate</h3>
+            <ul style={detailsListStyle(darkMode)}>
+              <li><Link to="/users" style={detailsLinkStyle(darkMode)}>Toți utilizatorii</Link></li>
+              <li><Link to="/trending" style={detailsLinkStyle(darkMode)}>În tendințe</Link></li>
+              <li><Link to="/requests" style={detailsLinkStyle(darkMode)}>Cereri de notițe</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h3 style={detailsTitleStyle}>Reguli</h3>
+            <ul style={detailsListStyle(darkMode)}>
+              <li><Link to="/rules" style={detailsLinkStyle(darkMode)}>Regulament</Link></li>
+              <li><Link to="/appeals/public" style={detailsLinkStyle(darkMode)}>Apeluri publice</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div style={{ borderTop: darkMode ? '1px solid rgba(168, 85, 247, 0.2)' : '1px solid rgba(244, 114, 182, 0.25)', paddingTop: 12, fontSize: 12, color: darkMode ? '#a89bc4' : '#9ca3af', textAlign: 'center' }}>
+          {new Date().getFullYear()} Notițe • Proiect educațional
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -216,11 +319,49 @@ const footerStyle = (darkMode) => ({
     : 'rgba(255, 240, 248, 0.7)',
   backdropFilter: 'blur(12px)',
   WebkitBackdropFilter: 'blur(12px)',
-  position: 'fixed',
-  left: 0,
-  right: 0,
+  position: 'sticky',
   bottom: 0,
   zIndex: 100,
+});
+
+// Secțiunea de detalii — apare sub footer-ul sticky. Cât scrollezi prin main,
+// footer-ul stă pinned la viewport bottom. Când ieși din wrapper-ul main+footer
+// (scrollezi în acest section), sticky se „eliberează" și footer-ul urcă cu
+// pagina, dezvăluind detaliile. Aceeași culoare ca footer-ul pentru continuitate.
+const siteDetailsStyle = (darkMode) => ({
+  position: 'relative',
+  zIndex: 2,
+  background: darkMode
+    ? 'rgba(20, 8, 50, 0.5)'
+    : 'rgba(255, 240, 248, 0.7)',
+  backdropFilter: 'blur(12px)',
+  WebkitBackdropFilter: 'blur(12px)',
+  borderTop: darkMode
+    ? '1px solid rgba(120, 60, 200, 0.2)'
+    : '1px solid rgba(244, 114, 182, 0.25)',
+  color: darkMode ? '#d4c8ff' : '#374151',
+});
+const siteDetailsInner = {
+  maxWidth: 1200,
+  margin: '0 auto',
+  padding: '32px 24px 24px',
+};
+const detailsTitleStyle = {
+  margin: '0 0 8px', fontSize: 14, fontWeight: 700, letterSpacing: 0.5,
+  textTransform: 'uppercase',
+};
+const detailsTextStyle = (darkMode) => ({
+  margin: 0, fontSize: 13, lineHeight: 1.55,
+  color: darkMode ? '#c9bee0' : '#4b5563',
+});
+const detailsListStyle = (darkMode) => ({
+  listStyle: 'none', padding: 0, margin: 0,
+  fontSize: 13, lineHeight: 1.8,
+  color: darkMode ? '#c9bee0' : '#4b5563',
+});
+const detailsLinkStyle = (darkMode) => ({
+  color: darkMode ? '#c9a8ff' : '#be185d',
+  textDecoration: 'none', fontWeight: 500,
 });
 
 const linkStyle = {

@@ -199,8 +199,8 @@ export default function SettingsPage() {
     <div style={{ maxWidth: 900 }}>
       <h1 style={{ fontSize: 28, marginBottom: 24 }}>Setări cont</h1>
 
-      <div style={layoutStyle}>
-        <nav style={tabsStyle(darkMode)}>
+      <div className="responsive-settings-layout" style={layoutStyle}>
+        <nav className="responsive-settings-tabs" style={tabsStyle(darkMode)}>
           <TabBtn active={tab === 'profile'}      onClick={() => setTab('profile')}      label="Profil" />
           <TabBtn active={tab === 'privacy'}      onClick={() => setTab('privacy')}      label="Confidențialitate" />
           <TabBtn active={tab === 'notifications'} onClick={() => setTab('notifications')} label="Notificări"         />

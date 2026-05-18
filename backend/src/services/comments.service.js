@@ -1,6 +1,7 @@
 // Comments service — manage comments cu threading (parentId pentru replies).
 import { prisma } from '../db/prismaClient.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { sanitizePlainText } from './sanitize.service.js';
 
 export async function createComment(userId, noteId, content, parentId = null) {
   // Verifică că nota există
@@ -23,7 +24,7 @@ export async function createComment(userId, noteId, content, parentId = null) {
     data: {
       userId,
       noteId,
-      content,
+      content: sanitizePlainText(content, { maxLength: 5000 }),
       parentId: parentId || null,
     },
     include: {
@@ -62,8 +63,14 @@ export async function deleteComment(commentId, userId) {
     throw new AppError('Comentariu nu există', 404);
   }
 
-  // Doar autorrul poate șterge
-  if (comment.userId !== userId) {
+  // Autorul comentariului sau adminii pot șterge. Profesorii NU pot șterge
+  // comentarii (au doar dreptul de a edita notițele pentru corecturi).
+  const me = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  const isAdmin = me?.role === 'ADMIN' || me?.role === 'HEAD_ADMIN';
+  if (comment.userId !== userId && !isAdmin) {
     throw new AppError('Nu ai permisiunea să ștergi acest comentariu', 403);
   }
 
@@ -84,7 +91,7 @@ export async function updateComment(commentId, content, userId) {
 
   return prisma.comment.update({
     where: { id: commentId },
-    data: { content },
+    data: { content: sanitizePlainText(content, { maxLength: 5000 }) },
     include: {
       user: { select: { id: true, username: true, isTeacher: true } },
     },

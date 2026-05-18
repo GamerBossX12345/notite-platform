@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useFlipAnimation } from '../hooks/useFlipAnimation.js';
+import { TeacherBadge } from '../components/Badges.jsx';
 
 const SORT_OPTIONS = [
   { value: 'reputation', label: 'Reputație (descrescător)' },
@@ -104,9 +105,10 @@ export default function UsersPage() {
                   <Link key={u.id} data-flip-id={u.id} to={`/profile/${u.username}`} style={cardLinkStyle}>
                     <div style={medal ? medalCardStyle(medal) : cardStyle}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-                        <h3 style={{ margin: 0, fontSize: 15, color: medal ? medal.text : 'inherit' }}>
+                        <h3 style={{ margin: 0, fontSize: 15, color: medal ? medal.text : 'inherit', display: 'inline-flex', alignItems: 'center' }}>
                           {medal && <span style={{ marginRight: 6 }}>{medal.icon}</span>}
                           {crown}{displayName}
+                          {u.isTeacher && <TeacherBadge size={14} />}
                         </h3>
                         {badge && (
                           <span style={{ ...badgeStyle, background: badge.color, color: u.role === 'ADMIN' ? '#3b2a00' : 'white' }}>

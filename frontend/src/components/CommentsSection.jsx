@@ -5,7 +5,8 @@ import { useAuth } from '../hooks/useAuth.js';
 import { UserNameWithBadges } from './Badges.jsx';
 
 export function CommentsSection({ noteId, initialComments = [], noteAuthorId = null }) {
-  const { darkMode } = useAuth();
+  const { user, darkMode } = useAuth();
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'HEAD_ADMIN';
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
@@ -95,6 +96,8 @@ export function CommentsSection({ noteId, initialComments = [], noteAuthorId = n
               comment={comment}
               darkMode={darkMode}
               noteAuthorId={noteAuthorId}
+              currentUserId={user?.id}
+              isAdmin={isAdmin}
               onReply={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
               onDelete={() => handleDelete(comment.id)}
               isReplying={replyingTo === comment.id}
@@ -108,7 +111,8 @@ export function CommentsSection({ noteId, initialComments = [], noteAuthorId = n
   );
 }
 
-function CommentItem({ comment, darkMode, noteAuthorId, onReply, onDelete, isReplying, onSubmitReply, loading }) {
+function CommentItem({ comment, darkMode, noteAuthorId, currentUserId, isAdmin, onReply, onDelete, isReplying, onSubmitReply, loading }) {
+  const canDelete = currentUserId && (comment.user?.id === currentUserId || isAdmin);
   const [replyText, setReplyText] = useState('');
 
   const handleReplySubmit = (e) => {
@@ -133,9 +137,11 @@ function CommentItem({ comment, darkMode, noteAuthorId, onReply, onDelete, isRep
               {new Date(comment.createdAt).toLocaleDateString('ro')}
             </span>
           </div>
-          <button onClick={onDelete} style={deleteBtnStyle(darkMode)} title="Șterge">
-            ✕
-          </button>
+          {canDelete && (
+            <button onClick={onDelete} style={deleteBtnStyle(darkMode)} title="Șterge">
+              ✕
+            </button>
+          )}
         </div>
         <p style={{ margin: '8px 0 0', fontSize: 14, color: darkMode ? '#d8cfee' : '#333' }}>
           {comment.content}

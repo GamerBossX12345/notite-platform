@@ -140,5 +140,7 @@ export function compareFingerprints(fp1, fp2) {
   if (!fp1 || !fp2 || !Array.isArray(fp1) || !Array.isArray(fp2)) {
     return 0;
   }
+  // Edge case: ambele goale → fără semnal, nu o potrivire fictivă; evităm 0/0 = NaN.
+  if (fp1.length === 0 || fp2.length === 0) return 0;
   return jaccardSimilarity(fp1, fp2);
 }

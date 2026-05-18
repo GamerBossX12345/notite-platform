@@ -5,7 +5,6 @@ import { useAuth } from '../hooks/useAuth.js';
 import Leaderboard from '../components/Leaderboard.jsx';
 import { NoteCard } from '../components/NoteCard.jsx';
 import { useFlipAnimation } from '../hooks/useFlipAnimation.js';
-import { useRecentNotes } from '../hooks/useRecentNotes.js';
 
 const SUBJECTS = [
   'Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică',
@@ -38,7 +37,6 @@ export default function HomePage() {
   const [semanticError, setSemanticError] = useState(null);
 
   const defaultsApplied = useRef(false);
-  const { recent: recentlyViewed, clear: clearRecent, remove: removeRecent } = useRecentNotes();
 
   useEffect(() => {
     api.get('/notes', { params: { sort: 'recent', pageSize: 3 } })
@@ -167,7 +165,7 @@ export default function HomePage() {
       {sidebarOpen && (
         <>
           <div onClick={() => setSidebarOpen(false)} style={sidebarOverlayStyle} />
-          <aside style={sidebarStyle(darkMode)}>
+          <aside className="responsive-filter-sidebar" style={sidebarStyle(darkMode)} role="dialog" aria-modal="true" aria-label="Filtre notițe">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <h3 style={{ margin: 0, fontSize: 16 }}>Filtre</h3>
               <button onClick={() => setSidebarOpen(false)} style={sidebarCloseBtnStyle}>✕</button>
@@ -323,7 +321,7 @@ export default function HomePage() {
                 {semanticResults.length === 0 ? (
                   <p style={{ color: '#888' }}>Niciun rezultat. Încearcă o altă formulare.</p>
                 ) : (
-                  <div style={gridStyle}>
+                  <div className="responsive-cards-grid" style={gridStyle}>
                     {semanticResults.map(note => (
                       <NoteCard key={note.id} note={note} similarity={note.similarity} />
                     ))}
@@ -342,53 +340,13 @@ export default function HomePage() {
         {/* Mod clasic */}
         {!semanticMode && (
           <>
-            {/* Continuă unde ai rămas — istoric vizite (client-side, localStorage) */}
-            {recentlyViewed.length > 0 && !searchInput && !hasActiveFilters && (
-              <section style={{ marginBottom: 32 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                  <h2 style={{ ...sectionTitleStyle, margin: 0 }}>📖 Continuă unde ai rămas</h2>
-                  <button
-                    onClick={clearRecent}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      color: darkMode ? '#a89bc4' : '#888',
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                    }}
-                    title="Șterge istoricul"
-                  >
-                    Șterge istoricul
-                  </button>
-                </div>
-                <div style={recentListStyle(darkMode)}>
-                  {recentlyViewed.map(item => (
-                    <div key={item.id} style={recentItemStyle(darkMode)}>
-                      <Link to={`/notes/${item.id}`} style={recentLinkStyle(darkMode)}>
-                        <span style={{ fontSize: 14, fontWeight: 600 }}>{item.title}</span>
-                        <span style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#888' }}>
-                          {item.subject} • a {item.gradeLevel}-a
-                        </span>
-                      </Link>
-                      <button
-                        onClick={() => removeRecent(item.id)}
-                        title="Elimină din istoric"
-                        style={recentRemoveBtnStyle(darkMode)}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            {/* Istoricul de vizite a fost mutat în pagina dedicată /history. */}
 
             {/* Notițe recente — top 3 */}
             {recentNotes.length > 0 && !searchInput && !hasActiveFilters && (
               <section style={{ marginBottom: 32 }}>
                 <h2 style={sectionTitleStyle}>Notițe recente</h2>
-                <div style={gridStyle}>
+                <div className="responsive-cards-grid" style={gridStyle}>
                   {recentNotes.map(note => <NoteCard key={note.id} note={note} />)}
                 </div>
               </section>
@@ -439,7 +397,7 @@ export default function HomePage() {
                   {result.notes.length === 0 ? (
                     <p>Nicio notiță găsită. Fii primul!</p>
                   ) : (
-                    <div ref={allNotesGridRef} style={gridStyle}>
+                    <div ref={allNotesGridRef} className="responsive-cards-grid" style={gridStyle}>
                       {result.notes.map(note => <NoteCard key={note.id} note={note} />)}
                     </div>
                   )}
@@ -587,38 +545,6 @@ const chipStyle = (darkMode, active) => ({
   transition: 'background 0.2s ease, border-color 0.2s ease, color 0.2s ease',
 });
 
-const recentListStyle = (darkMode) => ({
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-  gap: 8,
-});
-const recentItemStyle = (darkMode) => ({
-  display: 'flex', alignItems: 'center', gap: 8,
-  padding: '8px 10px',
-  borderRadius: 8,
-  border: darkMode ? '1px solid rgba(120, 60, 200, 0.18)' : '1px solid rgba(244, 114, 182, 0.25)',
-  background: darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.6)',
-  transition: 'background 0.4s ease, border-color 0.4s ease',
-});
-const recentLinkStyle = (darkMode) => ({
-  flex: 1,
-  display: 'flex',
-  flexDirection: 'column',
-  textDecoration: 'none',
-  color: darkMode ? '#e8e0ff' : '#1a1a1a',
-  overflow: 'hidden',
-  whiteSpace: 'nowrap',
-  textOverflow: 'ellipsis',
-});
-const recentRemoveBtnStyle = (darkMode) => ({
-  background: 'transparent',
-  border: 'none',
-  color: darkMode ? '#867aa3' : '#aaa',
-  cursor: 'pointer',
-  fontSize: 14,
-  padding: '0 4px',
-  lineHeight: 1,
-});
 const pageButtonStyle = (darkMode) => ({
   padding: '6px 14px',
   border: darkMode ? '1px solid rgba(168, 85, 247, 0.45)' : '1px solid rgba(244, 114, 182, 0.5)',
