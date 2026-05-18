@@ -1,15 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useEditorSetup, TipTapEditor } from './TipTapEditor.jsx';
 
-const NOTE_TYPES = [
-  { value: 'REZUMAT',           label: 'Rezumat' },
-  { value: 'EXERCITII',         label: 'Exerciții' },
-  { value: 'FISA',              label: 'Fișă' },
-  { value: 'HARTA_CONCEPTUALA', label: 'Hartă conceptuală' },
-  { value: 'FORMULE',           label: 'Formule' },
-];
 const SUBJECTS = [
   'Matematică', 'Fizică', 'Chimie', 'Biologie', 'Informatică',
   'Istorie', 'Geografie', 'Română', 'Engleză', 'Franceză',
@@ -19,8 +13,17 @@ const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
 
 export function NoteEditForm({ note, onSaved, onCancel }) {
   const { darkMode } = useAuth();
+  const { t } = useTranslation();
   const editor = useEditorSetup();
   const fileInputRef = useRef(null);
+
+  const NOTE_TYPES = [
+    { value: 'REZUMAT',           label: t('upload.noteTypeRezumat')   },
+    { value: 'EXERCITII',         label: t('upload.noteTypeExercitii') },
+    { value: 'FISA',              label: t('upload.noteTypeFisa')      },
+    { value: 'HARTA_CONCEPTUALA', label: t('upload.noteTypeHarta')     },
+    { value: 'FORMULE',           label: t('upload.noteTypeFormule')   },
+  ];
 
   const [title, setTitle]           = useState(note.title || '');
   const [subject, setSubject]       = useState(note.subject || '');
@@ -80,7 +83,7 @@ export function NoteEditForm({ note, onSaved, onCancel }) {
       const { data } = await api.put(`/notes/${note.id}`, formData);
       onSaved(data);
     } catch (err) {
-      setError(err.response?.data?.error || 'Eroare la salvare');
+      setError(err.response?.data?.error || t('common.saveError'));
     } finally {
       setSaving(false);
     }
@@ -91,69 +94,69 @@ export function NoteEditForm({ note, onSaved, onCancel }) {
   return (
     <form onSubmit={handleSubmit} style={{ marginBottom: 24 }}>
       <label style={labelStyle}>
-        Titlu
+        {t('upload.titleField')}
         <input value={title} onChange={e => setTitle(e.target.value)} required style={inputStyle(darkMode)} />
       </label>
 
       <label style={labelStyle}>
-        Materie
+        {t('upload.subjectField')}
         <select value={subject} onChange={e => setSubject(e.target.value)} required style={inputStyle(darkMode)}>
-          <option value="" disabled>Selectează materia</option>
+          <option value="" disabled>—</option>
           {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </label>
 
       <div style={{ display: 'flex', gap: 12 }}>
         <label style={{ ...labelStyle, flex: 1 }}>
-          Clasa
+          {t('upload.gradeField')}
           <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} required style={inputStyle(darkMode)}>
-            <option value="" disabled>Selectează clasa</option>
-            {GRADE_LEVELS.map(g => <option key={g} value={g}>a {g}-a</option>)}
+            <option value="" disabled>—</option>
+            {GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
         </label>
         <label style={{ ...labelStyle, flex: 1 }}>
-          Tip
+          {t('upload.typeField')}
           <select value={type} onChange={e => setType(e.target.value)} required style={inputStyle(darkMode)}>
-            <option value="" disabled>Selectează tipul</option>
-            {NOTE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+            <option value="" disabled>—</option>
+            {NOTE_TYPES.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
           </select>
         </label>
       </div>
 
       <label style={labelStyle}>
-        Capitol <span style={{ color: darkMode ? '#a89bc4' : '#888', fontWeight: 400 }}>(opțional)</span>
+        {t('upload.chapterField')}
         <input value={chapter} onChange={e => setChapter(e.target.value)} style={inputStyle(darkMode)} />
       </label>
 
       <div style={{ marginBottom: 16 }}>
-        <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>Conținut</span>
+        <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>{t('upload.contentField')}</span>
         <TipTapEditor editor={editor} />
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>Fișier atașat</span>
+        <span style={{ display: 'block', fontWeight: 500, marginBottom: 6 }}>{t('upload.fileField')}</span>
         {existingFileName && !newFile && !removeExistingFile && (
           <div style={fileBoxStyle(darkMode)}>
             <span style={{ flex: 1, fontSize: 14 }}>📎 {existingFileName}</span>
             <button type="button" onClick={() => setRemoveExistingFile(true)} style={removeBtnStyle(darkMode)}>
-              Elimină
+              {t('upload.removeFile')}
             </button>
           </div>
         )}
         {removeExistingFile && (
           <div style={{ ...fileBoxStyle(darkMode), borderStyle: 'dashed' }}>
             <span style={{ flex: 1, fontSize: 13, color: darkMode ? '#a89bc4' : '#888' }}>
-              Fișierul va fi șters la salvare
+              {t('upload.removeFile')}
             </span>
             <button type="button" onClick={() => setRemoveExistingFile(false)} style={removeBtnStyle(darkMode)}>
-              Anulează
+              {t('common.cancel')}
             </button>
           </div>
         )}
         {newFile && (
           <div style={fileBoxStyle(darkMode)}>
             <span style={{ flex: 1, fontSize: 14 }}>📎 {newFile.name}</span>
-            <button type="button" onClick={clearNewFile} style={removeBtnStyle(darkMode)}>Anulează</button>
+            <button type="button" onClick={clearNewFile} style={removeBtnStyle(darkMode)}>{t('common.cancel')}</button>
           </div>
         )}
         <input ref={fileInputRef} type="file" onChange={handleFileChange} style={{ display: 'block', marginTop: 8, fontSize: 13 }} />
@@ -163,10 +166,10 @@ export function NoteEditForm({ note, onSaved, onCancel }) {
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="submit" disabled={saving} style={btnPrimary(darkMode)}>
-          {saving ? 'Se salvează...' : 'Salvează'}
+          {saving ? t('upload.submittingEdit') : t('upload.submitEdit')}
         </button>
         <button type="button" onClick={onCancel} style={btnSecondary(darkMode)}>
-          Anulează
+          {t('common.cancel')}
         </button>
       </div>
     </form>

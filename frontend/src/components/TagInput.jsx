@@ -1,11 +1,13 @@
 // Input pentru tag-uri cu autocomplete din lista globală (oficial + user).
 // Userul poate adăuga și tag-uri noi tastând și apăsând Enter sau virgulă.
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 export function TagInput({ value, onChange, max = 8 }) {
   const { darkMode } = useAuth();
+  const { t } = useTranslation();
   const [input, setInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -64,7 +66,7 @@ export function TagInput({ value, onChange, max = 8 }) {
         {value.map(tag => (
           <span key={tag} style={chipStyle(darkMode)}>
             #{tag}
-            <button type="button" onClick={() => remove(tag)} style={removeBtnStyle(darkMode)} aria-label="Elimină">×</button>
+            <button type="button" onClick={() => remove(tag)} style={removeBtnStyle(darkMode)} aria-label={t('common.delete')}>×</button>
           </span>
         ))}
         <input
@@ -73,7 +75,7 @@ export function TagInput({ value, onChange, max = 8 }) {
           onChange={e => setInput(e.target.value)}
           onKeyDown={onKeyDown}
           onFocus={() => setShowSuggestions(true)}
-          placeholder={value.length >= max ? `Maxim ${max} tag-uri` : 'Adaugă tag (Enter sau virgulă)...'}
+          placeholder={value.length >= max ? `${max} max` : t('upload.tagsPlaceholder')}
           disabled={value.length >= max}
           style={inputStyle(darkMode)}
         />
@@ -81,16 +83,16 @@ export function TagInput({ value, onChange, max = 8 }) {
 
       {showSuggestions && suggestions.length > 0 && (
         <div style={suggestionsStyle(darkMode)}>
-          {suggestions.map(t => (
+          {suggestions.map(tag => (
             <button
-              key={t.id}
+              key={tag.id}
               type="button"
-              onClick={() => { add(t.name); setShowSuggestions(false); }}
+              onClick={() => { add(tag.name); setShowSuggestions(false); }}
               style={suggestionItemStyle(darkMode)}
             >
-              {t.isOfficial && <span title="Tag oficial" style={{ color: '#a855f7' }}>★</span>}
-              <span style={{ flex: 1, textAlign: 'left' }}>#{t.name}</span>
-              {t.noteCount > 0 && <span style={{ fontSize: 11, opacity: 0.6 }}>{t.noteCount}</span>}
+              {tag.isOfficial && <span style={{ color: '#a855f7' }}>★</span>}
+              <span style={{ flex: 1, textAlign: 'left' }}>#{tag.name}</span>
+              {tag.noteCount > 0 && <span style={{ fontSize: 11, opacity: 0.6 }}>{tag.noteCount}</span>}
             </button>
           ))}
         </div>

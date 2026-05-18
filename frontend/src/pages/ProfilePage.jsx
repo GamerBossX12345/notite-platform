@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { TeacherBadge } from '../components/Badges.jsx';
 
@@ -11,6 +12,7 @@ const TOP_MEDALS = {
 
 export default function ProfilePage() {
   const { username } = useParams();
+  const { t } = useTranslation();
   const [profile, setProfile] = useState(null);
   const [notes, setNotes] = useState([]);
   const [topRank, setTopRank] = useState(null);
@@ -33,21 +35,20 @@ export default function ProfilePage() {
       .finally(() => setLoading(false));
   }, [username]);
 
-  if (loading) return <p>Se încarcă...</p>;
-  if (error) return <p style={{ color: 'red' }}>Eroare: {error}</p>;
+  if (loading) return <p>{t('common.loading')}</p>;
+  if (error) return <p style={{ color: 'red' }}>{t('common.error')}: {error}</p>;
 
   const displayName = profile.showName && profile.name ? profile.name : `@${profile.username}`;
   const medal = topRank ? TOP_MEDALS[topRank] : null;
   const meta = [
     profile.school,
-    profile.grade ? `clasa a ${profile.grade}-a` : null,
+    profile.grade ? `${t('common.grade')} ${profile.grade}` : null,
   ].filter(Boolean);
 
   return (
     <div style={{ position: 'relative', minHeight: '60vh' }}>
       {profile.banCount > 0 && (
         <div
-          title={`Acest cont a fost banat de ${profile.banCount} ${profile.banCount === 1 ? 'ori' : 'ori'} în istoric.`}
           style={{
             position: 'fixed', bottom: 8, right: 12, zIndex: 1,
             fontSize: 10, color: '#9ca3af', opacity: 0.55,
@@ -55,7 +56,7 @@ export default function ProfilePage() {
             letterSpacing: 0.2,
           }}
         >
-          banat de {profile.banCount}× în istoric
+          {profile.banCount}× {t('banHistory.title')}
         </div>
       )}
       <h1 style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -96,12 +97,12 @@ export default function ProfilePage() {
         </p>
       )}
       <p style={{ color: '#888', fontSize: 13, marginBottom: 0 }}>
-        ⭐ {profile.reputation} reputație
+        ⭐ {profile.reputation} {t('profile.reputation')}
       </p>
 
-      <h2 style={{ marginTop: 32 }}>Notițe ({notes.length})</h2>
+      <h2 style={{ marginTop: 32 }}>{t('profile.noteCount')} ({notes.length})</h2>
       {notes.length === 0 ? (
-        <p style={{ color: '#aaa' }}>Nicio notiță publicată încă.</p>
+        <p style={{ color: '#aaa' }}>{t('profile.noNotes')}</p>
       ) : (
         <ul style={{ listStyle: 'none', padding: 0 }}>
           {notes.map((note) => (
@@ -110,11 +111,11 @@ export default function ProfilePage() {
                 <h3 style={{ margin: 0 }}>{note.title}</h3>
               </Link>
               <p style={{ margin: '4px 0', color: '#aaa', fontSize: 14 }}>
-                {note.subject} • clasa a {note.gradeLevel}-a • {note.type}
+                {note.subject} • {t('common.grade')} {note.gradeLevel} • {note.type}
               </p>
               {note.ratingCount > 0 && (
                 <p style={{ margin: 0, fontSize: 13, color: '#888' }}>
-                  ⭐ {note.avgRating.toFixed(1)} ({note.ratingCount} voturi)
+                  ⭐ {note.avgRating.toFixed(1)} ({note.ratingCount})
                 </p>
               )}
             </li>

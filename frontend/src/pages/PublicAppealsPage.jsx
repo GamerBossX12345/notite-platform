@@ -3,16 +3,18 @@
 // finală. Toate fără username-uri reale.
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
-const RESOLUTION_LABEL = {
-  UPHELD:     { label: 'Ban menținut', color: '#dc2626', bg: 'rgba(220, 38, 38, 0.1)' },
-  OVERTURNED: { label: 'Ban ridicat',  color: '#16a34a', bg: 'rgba(22, 163, 74, 0.1)' },
-};
-
 export default function PublicAppealsPage() {
   const { darkMode } = useAuth();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('en') ? 'en-US' : 'ro-RO';
+  const RESOLUTION_LABEL = {
+    UPHELD:     { label: t('appeals.resolutionUpheld'),     color: '#dc2626', bg: 'rgba(220, 38, 38, 0.1)' },
+    OVERTURNED: { label: t('appeals.resolutionOverturned'), color: '#16a34a', bg: 'rgba(22, 163, 74, 0.1)' },
+  };
   const [searchParams, setSearchParams] = useSearchParams();
   const page = Number(searchParams.get('page') || 1);
   const [data, setData] = useState({ items: [], total: 0, totalPages: 1 });
@@ -37,20 +39,19 @@ export default function PublicAppealsPage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
-      <h1 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>📜 Apeluri publice</h1>
+      <h1 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>📜 {t('appeals.title')}</h1>
       <p style={{ color: darkMode ? '#a89bc4' : '#666', fontSize: 14, marginBottom: 24 }}>
-        Apeluri ale userilor banați care au fost soluționate și pe care autorii au ales să le facă publice.
-        Username-urile sunt anonimizate (primele 2 caractere + ***).
+        {t('appeals.subtitle')}
       </p>
 
-      {loading && <p>Se încarcă...</p>}
-      {error && <p style={{ color: '#ef4444' }}>Eroare: {error}</p>}
+      {loading && <p>{t('common.loading')}</p>}
+      {error && <p style={{ color: '#ef4444' }}>{t('common.error')}: {error}</p>}
 
       {!loading && !error && (
         <>
           {data.items.length === 0 ? (
             <p style={{ color: darkMode ? '#a89bc4' : '#666' }}>
-              Niciun apel public încă.
+              {t('appeals.empty')}
             </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -68,24 +69,23 @@ export default function PublicAppealsPage() {
                   </div>
                   {a.banReason && (
                     <p style={{ margin: '0 0 8px', fontSize: 13, color: darkMode ? '#a89bc4' : '#666' }}>
-                      <strong>Motiv ban:</strong> {a.banReason}
+                      <strong>{t('banned.reason')}:</strong> {a.banReason}
                     </p>
                   )}
-                  <div style={sectionLabelStyle(darkMode)}>Mesajul utilizatorului:</div>
+                  <div style={sectionLabelStyle(darkMode)}>{t('appeals.appealMessage')}:</div>
                   <p style={{ margin: '4px 0 12px', whiteSpace: 'pre-wrap', fontSize: 14, color: darkMode ? '#d4c8ff' : '#222' }}>
                     {a.message}
                   </p>
                   {a.adminResponse && (
                     <>
-                      <div style={sectionLabelStyle(darkMode)}>Răspunsul adminului:</div>
+                      <div style={sectionLabelStyle(darkMode)}>{t('appeals.adminResponse')}:</div>
                       <p style={{ margin: '4px 0 8px', whiteSpace: 'pre-wrap', fontSize: 14, color: darkMode ? '#d4c8ff' : '#222' }}>
                         {a.adminResponse}
                       </p>
                     </>
                   )}
                   <div style={{ fontSize: 11, color: darkMode ? '#867aa3' : '#aaa', marginTop: 8 }}>
-                    Depus: {new Date(a.createdAt).toLocaleDateString('ro-RO')}
-                    {a.resolvedAt && <> • Soluționat: {new Date(a.resolvedAt).toLocaleDateString('ro-RO')}</>}
+                    {new Date(a.createdAt).toLocaleDateString(locale)}
                   </div>
                 </article>
               ))}
@@ -94,11 +94,11 @@ export default function PublicAppealsPage() {
 
           {data.totalPages > 1 && (
             <div style={paginationStyle}>
-              <button onClick={() => setPage(page - 1)} disabled={page <= 1} style={pageBtnStyle(darkMode)}>‹ Anterior</button>
+              <button onClick={() => setPage(page - 1)} disabled={page <= 1} style={pageBtnStyle(darkMode)}>‹ {t('common.previous')}</button>
               <span style={{ padding: '6px 12px', color: darkMode ? '#a89bc4' : '#888', fontSize: 14 }}>
-                Pagina {page} / {data.totalPages}
+                {page} / {data.totalPages}
               </span>
-              <button onClick={() => setPage(page + 1)} disabled={page >= data.totalPages} style={pageBtnStyle(darkMode)}>Următor ›</button>
+              <button onClick={() => setPage(page + 1)} disabled={page >= data.totalPages} style={pageBtnStyle(darkMode)}>{t('common.next')} ›</button>
             </div>
           )}
         </>

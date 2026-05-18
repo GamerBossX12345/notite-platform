@@ -7,6 +7,7 @@ import * as teacherController from '../controllers/teacher.controller.js';
 import * as flashcardsController from '../controllers/flashcards.controller.js';
 import { requireAuth } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
+import { loginRateLimit, registerRateLimit } from '../middleware/authRateLimit.js';
 
 const router = Router();
 
@@ -21,8 +22,8 @@ function withOptionalUpload(req, res, next) {
   });
 }
 
-router.post('/register', authController.register);
-router.post('/login', authController.login);
+router.post('/register', registerRateLimit, authController.register);
+router.post('/login', loginRateLimit, authController.login);
 router.get('/verify-email', authController.verifyEmail);
 router.get('/verify-device', authController.verifyDeviceLogin);
 router.get('/me', requireAuth, authController.me);

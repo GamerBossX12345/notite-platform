@@ -139,6 +139,9 @@ model Note {
 
   @@index([subject, gradeLevel])
   @@index([authorId])
+  // Listing public: filtrăm `hidden = false` și sortăm după `createdAt`.
+  // Hot path pe Home / Trending — fără index acum face seq scan + sort.
+  @@index([hidden, createdAt])
 }
 
 enum Role {
@@ -183,6 +186,11 @@ model Comment {
   parent  Comment?  @relation("CommentThread", fields: [parentId], references: [id], onDelete: Cascade)
   replies Comment[] @relation("CommentThread")
   bannedUsers User[] @relation("BanComment")
+
+  // Listing comentarii pentru o notiță, sortate cronologic.
+  @@index([noteId, createdAt])
+  @@index([parentId])
+  @@index([userId])
 }
 
 model Report {

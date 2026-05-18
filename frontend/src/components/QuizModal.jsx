@@ -1,11 +1,13 @@
 // Quiz Generator Modal
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 
 export function QuizModal({ noteId, isOpen, onClose }) {
   const { darkMode } = useAuth();
+  const { t } = useTranslation();
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -21,7 +23,7 @@ export function QuizModal({ noteId, isOpen, onClose }) {
       setSelectedAnswers({});
       setShowResults(false);
     } catch (err) {
-      setError(err.response?.data?.error || 'Eroare la generarea quiz-ului');
+      setError(err.response?.data?.error || t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -70,25 +72,22 @@ export function QuizModal({ noteId, isOpen, onClose }) {
   return (
     <div style={overlayStyle}>
       <div style={modalStyle(darkMode)}>
-        <button onClick={onClose} style={closeBtnStyle(darkMode)}>
+        <button onClick={onClose} style={closeBtnStyle(darkMode)} aria-label={t('common.close')}>
           <X size={22} />
         </button>
 
-        <h2 style={{ margin: '0 0 16px', color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>📝 Quiz Generator</h2>
+        <h2 style={{ margin: '0 0 16px', color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>📝 {t('ai.quizTitle')}</h2>
 
         {!quiz ? (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <p style={{ marginBottom: 16, color: muted }}>
-              Generează o întrebare pe baza conținutului notei folosind AI
-            </p>
             <button onClick={generateQuiz} disabled={loading} style={primaryBtnStyle(darkMode)}>
-              {loading ? 'Se generează...' : 'Generează Quiz'}
+              {loading ? t('ai.quizLoading') : t('note.generateQuiz')}
             </button>
             {error && <p style={{ color: '#ef4444', marginTop: 12 }}>❌ {error}</p>}
           </div>
         ) : showResults ? (
           <div>
-            <h3 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>📊 Rezultatele Tale</h3>
+            <h3 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>📊 {t('ai.quizScore', { correct: 0, total: quiz.questions.length }).split(':')[0]}</h3>
             <div style={{
               fontSize: 48, fontWeight: 'bold', textAlign: 'center',
               color: calculateScore() >= 60 ? '#22c55e' : '#ef4444',
@@ -96,11 +95,6 @@ export function QuizModal({ noteId, isOpen, onClose }) {
             }}>
               {calculateScore()}%
             </div>
-            <p style={{ textAlign: 'center', marginBottom: 24, color: muted }}>
-              {calculateScore() >= 80 && '🎉 Excelent! Bun-venit pe podium!'}
-              {calculateScore() >= 60 && calculateScore() < 80 && '👍 Bine! Continuă să studiezi.'}
-              {calculateScore() < 60 && '💪 Mai poți face mai bine. Revizuiește conținutul!'}
-            </p>
 
             <div style={{ marginBottom: 24 }}>
               {quiz.questions.map((q, idx) => {
@@ -109,8 +103,8 @@ export function QuizModal({ noteId, isOpen, onClose }) {
                   <div key={q.id} style={resultRowStyle(darkMode, isCorrect)}>
                     <p style={{ margin: 0 }}><strong>{idx + 1}. {q.question}</strong></p>
                     <p style={{ fontSize: 13, color: muted, margin: '6px 0 0' }}>
-                      Răspuns: <strong>{selectedAnswers[q.id]}</strong>
-                      {!isCorrect && <span> (Corect: {fullCorrectOption(q)})</span>}
+                      {isCorrect ? '✓ ' + t('ai.quizCorrect') : '✗ ' + t('ai.quizIncorrect')}: <strong>{selectedAnswers[q.id]}</strong>
+                      {!isCorrect && <span> ({fullCorrectOption(q)})</span>}
                     </p>
                   </div>
                 );
@@ -118,17 +112,17 @@ export function QuizModal({ noteId, isOpen, onClose }) {
             </div>
 
             <button onClick={() => setQuiz(null)} style={{ ...primaryBtnStyle(darkMode), width: '100%' }}>
-              Generează alt quiz
+              {t('ai.quizRetry')}
             </button>
           </div>
         ) : (
           <div>
-            <h3 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>Răspunde la întrebări:</h3>
+            <h3 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>{t('ai.quizTitle')}</h3>
             <div style={{ marginBottom: 24 }}>
               {quiz.questions.map((q, idx) => (
                 <div key={q.id} style={{ marginBottom: 24, paddingBottom: 16, borderBottom: `1px solid ${border}` }}>
                   <p style={{ fontWeight: 'bold', marginBottom: 12 }}>
-                    {idx + 1}. {q.question}
+                    {t('ai.quizQuestion', { n: idx + 1, total: quiz.questions.length })}: {q.question}
                   </p>
                   {q.options?.map((option, oIdx) => {
                     const checked = selectedAnswers[q.id] === option;
@@ -159,7 +153,7 @@ export function QuizModal({ noteId, isOpen, onClose }) {
                 opacity: Object.keys(selectedAnswers).length !== quiz.questions.length ? 0.5 : 1,
               }}
             >
-              Trimite Răspunsuri
+              {t('ai.quizSubmit')}
             </button>
           </div>
         )}

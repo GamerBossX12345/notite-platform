@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -7,6 +8,7 @@ export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { darkMode, refreshMe } = useAuth();
+  const { t } = useTranslation();
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
 
@@ -14,7 +16,7 @@ export default function VerifyEmailPage() {
     const token = searchParams.get('token');
     if (!token) {
       setStatus('error');
-      setError('Lipsește tokenul de verificare din URL.');
+      setError(t('auth.emailVerifyError'));
       return;
     }
 
@@ -22,8 +24,6 @@ export default function VerifyEmailPage() {
       .then(async res => {
         if (res.data?.token) {
           localStorage.setItem('token', res.data.token);
-          // Actualizăm contextul de auth ca să apară userul ca logat în UI
-          // imediat, fără refresh manual.
           await refreshMe();
         }
         setStatus('success');
@@ -31,9 +31,9 @@ export default function VerifyEmailPage() {
       })
       .catch(err => {
         setStatus('error');
-        setError(err.response?.data?.error || 'Verificare eșuată.');
+        setError(err.response?.data?.error || t('auth.emailVerifyError'));
       });
-  }, [searchParams, navigate, refreshMe]);
+  }, [searchParams, navigate, refreshMe, t]);
 
   return (
     <div style={{ maxWidth: 520, margin: '64px auto', textAlign: 'center', padding: 24 }}>
@@ -41,29 +41,26 @@ export default function VerifyEmailPage() {
         {status === 'loading' && (
           <>
             <div style={{ fontSize: 48, marginBottom: 12 }}>⏳</div>
-            <h2 style={titleStyle(darkMode)}>Se verifică emailul...</h2>
+            <h2 style={titleStyle(darkMode)}>{t('auth.verifyingEmail')}</h2>
           </>
         )}
 
         {status === 'success' && (
           <>
             <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-            <h2 style={titleStyle(darkMode)}>Email confirmat!</h2>
-            <p style={{ color: darkMode ? '#a89bc4' : '#666', margin: 0 }}>
-              Te conducem la pagina principală...
-            </p>
+            <h2 style={titleStyle(darkMode)}>{t('auth.emailVerified')}</h2>
           </>
         )}
 
         {status === 'error' && (
           <>
             <div style={{ fontSize: 48, marginBottom: 12 }}>❌</div>
-            <h2 style={titleStyle(darkMode)}>Verificare eșuată</h2>
+            <h2 style={titleStyle(darkMode)}>{t('common.error')}</h2>
             <p style={{ color: darkMode ? '#ff9999' : '#b91c1c', marginBottom: 16 }}>
               {error}
             </p>
             <Link to="/login" style={{ color: darkMode ? '#c9a8ff' : '#6366f1', textDecoration: 'none' }}>
-              ← Înapoi la login
+              ← {t('auth.goToLogin')}
             </Link>
           </>
         )}

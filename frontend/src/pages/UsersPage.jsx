@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useFlipAnimation } from '../hooks/useFlipAnimation.js';
 import { TeacherBadge } from '../components/Badges.jsx';
-
-const SORT_OPTIONS = [
-  { value: 'reputation', label: 'Reputație (descrescător)' },
-  { value: 'notes',      label: 'Număr notițe' },
-  { value: 'username',   label: 'Username (A-Z)' },
-  { value: 'recent',     label: 'Cei mai recent înregistrați' },
-];
 
 const ROLE_BADGE = {
   HEAD_ADMIN: { label: 'Head Admin', color: '#7c3aed' },
@@ -25,6 +19,13 @@ const MEDAL_STYLES = [
 
 export default function UsersPage() {
   const { darkMode } = useAuth();
+  const { t } = useTranslation();
+  const SORT_OPTIONS = [
+    { value: 'reputation', label: t('users.reputation') },
+    { value: 'notes',      label: t('users.notes') },
+    { value: 'username',   label: t('common.username') },
+    { value: 'recent',     label: t('users.joined') },
+  ];
   const [searchInput, setSearchInput] = useState('');
   const [sort, setSort] = useState('reputation');
   const [showAdmins, setShowAdmins] = useState(false);
@@ -60,12 +61,12 @@ export default function UsersPage() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 28 }}>Toți utilizatorii</h1>
+      <h1 style={{ marginBottom: 28 }}>{t('users.title')}</h1>
 
       <div style={filterBarStyle}>
         <input
           type="search"
-          placeholder="Caută după username sau nume..."
+          placeholder={t('users.searchPlaceholder')}
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
           style={{ ...inputStyle, flex: 1, minWidth: 200 }}
@@ -75,24 +76,23 @@ export default function UsersPage() {
         </select>
         <button
           onClick={() => setShowAdmins(s => !s)}
-          title={showAdmins ? 'Ascunde admini' : 'Arată doar admini'}
           style={adminToggleStyle(showAdmins)}
         >
-          {showAdmins ? '👑 Doar admini' : '👑 Admini'}
+          👑 {t('users.filterAdmins')}
         </button>
       </div>
 
-      {loading && <p>Se încarcă...</p>}
-      {error && <p style={{ color: 'red' }}>Eroare: {error}</p>}
+      {loading && <p>{t('common.loading')}</p>}
+      {error && <p style={{ color: 'red' }}>{t('common.error')}: {error}</p>}
 
       {!loading && !error && (
         <>
           <p style={{ color: '#888', fontSize: 13, marginBottom: 14 }}>
-            {data.total} {data.total === 1 ? 'utilizator' : 'utilizatori'}
+            {data.total}
           </p>
 
           {data.users.length === 0 ? (
-            <p>Niciun utilizator găsit.</p>
+            <p>{t('users.noUsers')}</p>
           ) : (
             <div ref={gridRef} style={gridStyle}>
               {data.users.map((u, idx) => {
@@ -121,13 +121,13 @@ export default function UsersPage() {
                       )}
                       {(u.school || u.grade) && (
                         <p style={{ ...metaStyle, color: medal ? medal.text : '#aaa', opacity: medal ? 0.85 : 1 }}>
-                          {[u.school, u.grade ? `clasa a ${u.grade}-a` : null].filter(Boolean).join(' • ')}
+                          {[u.school, u.grade ? `${t('common.grade')} ${u.grade}` : null].filter(Boolean).join(' • ')}
                         </p>
                       )}
                       <p style={{ margin: '8px 0 0', fontSize: 12, color: medal ? medal.text : '#888', fontWeight: medal ? 600 : 400 }}>
-                        ⭐ {u.reputation} reputație • 📓 {u._count.notes} {u._count.notes === 1 ? 'notiță' : 'notițe'}
+                        ⭐ {u.reputation} • 📓 {u._count.notes}
                         {showAdmins && (u.role === 'ADMIN' || u.role === 'HEAD_ADMIN') && (
-                          <> • 🛡️ {u._count.actionedReports || 0} rapoarte rezolvate</>
+                          <> • 🛡️ {u._count.actionedReports || 0}</>
                         )}
                       </p>
                     </div>
@@ -139,11 +139,11 @@ export default function UsersPage() {
 
           {data.totalPages > 1 && (
             <div style={paginationStyle}>
-              <button onClick={() => setPage(p => p - 1)} disabled={page <= 1} style={pageBtnStyle(darkMode)}>‹ Anterior</button>
+              <button onClick={() => setPage(p => p - 1)} disabled={page <= 1} style={pageBtnStyle(darkMode)}>‹ {t('common.previous')}</button>
               <span style={{ padding: '6px 12px', color: '#888', fontSize: 14 }}>
-                Pagina {page} din {data.totalPages}
+                {page} / {data.totalPages}
               </span>
-              <button onClick={() => setPage(p => p + 1)} disabled={page >= data.totalPages} style={pageBtnStyle(darkMode)}>Următor ›</button>
+              <button onClick={() => setPage(p => p + 1)} disabled={page >= data.totalPages} style={pageBtnStyle(darkMode)}>{t('common.next')} ›</button>
             </div>
           )}
         </>

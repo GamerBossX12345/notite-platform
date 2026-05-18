@@ -1,17 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth.js';
 import { api } from '../api/client.js';
 import { useEditorSetup, TipTapEditor } from '../components/TipTapEditor.jsx';
 import { TagInput } from '../components/TagInput.jsx';
-
-const NOTE_TYPES = [
-  { value: 'REZUMAT',           label: 'Rezumat' },
-  { value: 'EXERCITII',         label: 'Exerciții' },
-  { value: 'FISA',              label: 'Fișă' },
-  { value: 'HARTA_CONCEPTUALA', label: 'Hartă conceptuală' },
-  { value: 'FORMULE',           label: 'Formule' },
-];
 
 const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5); // 5..12
 const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
@@ -115,6 +108,14 @@ export default function UploadPage() {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const editor = useEditorSetup();
+  const { t } = useTranslation();
+  const NOTE_TYPES = [
+    { value: 'REZUMAT',           label: t('upload.noteTypeRezumat')   },
+    { value: 'EXERCITII',         label: t('upload.noteTypeExercitii') },
+    { value: 'FISA',              label: t('upload.noteTypeFisa')      },
+    { value: 'HARTA_CONCEPTUALA', label: t('upload.noteTypeHarta')     },
+    { value: 'FORMULE',           label: t('upload.noteTypeFormule')   },
+  ];
 
   const [title, setTitle]           = useState('');
   const [subject, setSubject]       = useState('');
@@ -300,103 +301,86 @@ export default function UploadPage() {
       // Navigare directă, fără popup de delay.
       navigate(`/notes/${data.id}`);
     } catch (err) {
-      setError(err.response?.data?.error || 'Eroare la salvare');
+      setError(err.response?.data?.error || t('common.saveError'));
       setSubmitting(false);
     }
   }
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <h1>📝 Notiță nouă</h1>
+      <h1>📝 {t('upload.title')}</h1>
 
       {hasDraft && (
         <div style={draftBannerStyle(darkMode)}>
           <div style={{ flex: 1 }}>
-            <strong>💾 Ai o ciornă salvată.</strong>
-            <span style={{ marginLeft: 6, fontSize: 13, opacity: 0.85 }}>
-              Vrei să continui de unde ai rămas?
-            </span>
+            <strong>💾 {t('upload.draftRestored')}</strong>
           </div>
-          <button type="button" onClick={restoreDraft} style={btnRestoreDraft}>Restaurează</button>
-          <button type="button" onClick={discardDraft} style={btnDiscardDraft(darkMode)}>Ignoră</button>
+          <button type="button" onClick={restoreDraft} style={btnRestoreDraft}>{t('common.confirm')}</button>
+          <button type="button" onClick={discardDraft} style={btnDiscardDraft(darkMode)}>{t('upload.draftDiscard')}</button>
         </div>
       )}
 
-      {draftRestored && (
-        <p style={{ fontSize: 13, color: darkMode ? '#86efac' : '#15803d', marginBottom: 12 }}>
-          ✓ Ciorna a fost restaurată.
-        </p>
-      )}
-
       <form onSubmit={openConfirm}>
-        {/* Rândul 1: Titlu — 1/2 din lățime */}
         <div style={{ marginBottom: 16, width: '50%', minWidth: 280 }}>
-          <FieldLabel darkMode={darkMode}>Titlu</FieldLabel>
+          <FieldLabel darkMode={darkMode}>{t('upload.titleField')}</FieldLabel>
           <input
             type="text" value={title} onChange={e => setTitle(e.target.value)} required
-            placeholder="Ex: Funcții de gradul al II-lea"
             style={inputStyle(darkMode)}
           />
         </div>
 
-        {/* Rândul 2: Clasa (1/3) | Tag-uri (1/3) | Tip (1/3) */}
         <div style={threeColGrid}>
           <div>
-            <FieldLabel darkMode={darkMode}>Clasa</FieldLabel>
+            <FieldLabel darkMode={darkMode}>{t('upload.gradeField')}</FieldLabel>
             <select value={gradeLevel} onChange={e => setGradeLevel(e.target.value)} required style={inputStyle(darkMode)}>
-              <option value="" disabled>Selectează clasa</option>
+              <option value="" disabled>—</option>
               {GRADE_LEVELS.map(g => (
-                <option key={g} value={g}>Clasa {romanOf(g)}</option>
+                <option key={g} value={g}>{romanOf(g)}</option>
               ))}
             </select>
           </div>
           <div>
-            <FieldLabel darkMode={darkMode} hint="opțional dar recomandat">Tag-uri</FieldLabel>
+            <FieldLabel darkMode={darkMode}>{t('upload.tagsField')}</FieldLabel>
             <TagInput value={tags} onChange={setTags} max={8} />
           </div>
           <div>
-            <FieldLabel darkMode={darkMode} hint="opțional">Tip</FieldLabel>
+            <FieldLabel darkMode={darkMode}>{t('upload.typeField')}</FieldLabel>
             <select value={type} onChange={e => setType(e.target.value)} style={inputStyle(darkMode)}>
-              <option value="">Selectează tipul</option>
-              {NOTE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              <option value="">—</option>
+              {NOTE_TYPES.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
             </select>
           </div>
         </div>
 
-        {/* Rândul 3: Materie (1/2) | Capitol (1/2) */}
         <div style={twoColGrid}>
           <div>
-            <FieldLabel darkMode={darkMode}>Materie</FieldLabel>
+            <FieldLabel darkMode={darkMode}>{t('upload.subjectField')}</FieldLabel>
             <select
               value={subject} onChange={e => setSubject(e.target.value)}
               required disabled={!gradeLevel}
               style={inputStyle(darkMode, !gradeLevel)}
             >
-              <option value="" disabled>
-                {gradeLevel ? 'Selectează materia' : 'Alege întâi clasa'}
-              </option>
+              <option value="" disabled>—</option>
               {availableSubjects.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <FieldLabel darkMode={darkMode}>Capitol</FieldLabel>
+            <FieldLabel darkMode={darkMode}>{t('upload.chapterField')}</FieldLabel>
             <select
               value={chapterChoice}
               onChange={e => setChapterChoice(e.target.value)}
               required disabled={!subject}
               style={inputStyle(darkMode, !subject)}
             >
-              <option value="" disabled>
-                {subject ? 'Selectează capitolul' : 'Alege întâi materia'}
-              </option>
+              <option value="" disabled>{t('upload.chapterPlaceholder')}</option>
               {availableChapters.map(c => <option key={c} value={c}>{c}</option>)}
-              <option value={CHAPTER_OTHER}>Altul…</option>
+              <option value={CHAPTER_OTHER}>—</option>
             </select>
             {chapterChoice === CHAPTER_OTHER && (
               <input
                 type="text" value={chapterCustom}
                 onChange={e => setChapterCustom(e.target.value)}
-                placeholder="Introdu capitolul"
+                placeholder={t('upload.chapterField')}
                 required
                 style={{ ...inputStyle(darkMode), marginTop: 8 }}
               />
@@ -404,23 +388,19 @@ export default function UploadPage() {
           </div>
         </div>
 
-        {/* Rândul 4: Conținut + Fișier (2-în-1) */}
         <div style={comboBoxStyle(darkMode)}>
           <div style={{ padding: 14, borderBottom: darkMode ? '1px solid rgba(168, 85, 247, 0.2)' : '1px solid rgba(0,0,0,0.08)' }}>
-            <FieldLabel darkMode={darkMode} compact>Conținut</FieldLabel>
+            <FieldLabel darkMode={darkMode} compact>{t('upload.contentField')}</FieldLabel>
             <TipTapEditor editor={editor} />
           </div>
           <div style={{ padding: 14 }}>
-            <FieldLabel darkMode={darkMode} compact hint={`opțional — max ${MAX_FILE_MB} MB`}>Fișier atașat</FieldLabel>
+            <FieldLabel darkMode={darkMode} compact hint={t('upload.fileHint')}>{t('upload.fileField')}</FieldLabel>
             {!file ? (
               <label style={dropZoneStyle(darkMode)}>
                 <input ref={fileInputRef} type="file" accept={ACCEPTED_TYPES}
                   onChange={handleFileChange} style={{ display: 'none' }} />
                 <span style={{ color: darkMode ? '#c9a8ff' : '#0066cc', cursor: 'pointer', fontWeight: 600 }}>
-                  Alege fișier
-                </span>
-                <span style={{ color: darkMode ? '#867aa3' : '#999', marginLeft: 8 }}>
-                  sau trage aici
+                  {t('common.open')}
                 </span>
               </label>
             ) : file.type === 'application/pdf' ? (
@@ -428,7 +408,7 @@ export default function UploadPage() {
             ) : (
               <div style={filePreviewContainerStyle(darkMode)}>
                 {filePreview ? (
-                  <img src={filePreview} alt="previzualizare"
+                  <img src={filePreview} alt=""
                     style={{ maxHeight: 200, maxWidth: '100%', borderRadius: 6, display: 'block', marginBottom: 8 }} />
                 ) : (
                   <div style={{ fontSize: 32, marginBottom: 4 }}>📎</div>
@@ -437,7 +417,7 @@ export default function UploadPage() {
                 <p style={{ margin: '2px 0 8px', fontSize: 12, color: darkMode ? '#a89bc4' : '#888' }}>
                   {(file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
-                <button type="button" onClick={removeFile} style={btnRemoveStyle(darkMode)}>Elimină fișier</button>
+                <button type="button" onClick={removeFile} style={btnRemoveStyle(darkMode)}>{t('upload.removeFile')}</button>
               </div>
             )}
           </div>
@@ -445,22 +425,18 @@ export default function UploadPage() {
 
         {error && <p style={{ color: '#ef4444', marginBottom: 12 }}>❌ {error}</p>}
 
-        {/* Buton publica — centrat, transparent, hover gradient + scale + rotate */}
         <div style={{ display: 'flex', justifyContent: 'center', position: 'relative', marginTop: 24 }}>
           {confirmOpen && (
             <div style={confirmPopoverStyle(darkMode)}>
               <p style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600 }}>
-                Publici notița?
-              </p>
-              <p style={{ margin: '0 0 12px', fontSize: 12, opacity: 0.75 }}>
-                Va fi vizibilă tuturor utilizatorilor.
+                {t('upload.submit')}?
               </p>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                 <button type="button" onClick={() => setConfirmOpen(false)} style={confirmCancelBtn(darkMode)}>
-                  Anulează
+                  {t('common.cancel')}
                 </button>
                 <button type="button" onClick={doSubmit} style={confirmOkBtn}>
-                  Confirmă
+                  {t('common.confirm')}
                 </button>
               </div>
               <div style={confirmArrowStyle(darkMode)} />
@@ -471,7 +447,7 @@ export default function UploadPage() {
             disabled={submitting || confirmOpen}
             className="publish-btn"
           >
-            {submitting ? 'Se publică…' : 'Publică notița'}
+            {submitting ? t('upload.submitting') : t('upload.submit')}
           </button>
         </div>
       </form>

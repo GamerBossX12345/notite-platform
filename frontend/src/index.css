@@ -124,6 +124,64 @@ body::before {
   backdrop-filter: blur(1px);
 }
 
+/* ── Accesibilitate ──────────────────────────────────────────────────────
+   Skip-link: ascuns vizual până la focus de la tastatură (Tab pe prima pagină
+   apare în colțul stânga-sus). Permite utilizatorilor de screen reader să
+   sară peste navbar direct la <main>. */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  background: #a855f7;
+  color: white;
+  font-weight: 600;
+  border-radius: 6px;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 8px;
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+}
+
+/* Inel de focus vizibil + uniform pe toate elementele interactive.
+   Folosim :focus-visible ca să nu apară la click cu mouse-ul, doar la
+   navigare la tastatură (Tab). */
+*:focus-visible {
+  outline: 2px solid #c9a8ff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+[data-theme="light"] *:focus-visible {
+  outline-color: #be185d;
+}
+/* Ascunde outline-ul default doar pentru elementele care primesc deja
+   :focus-visible (nu globală, ca să nu spargem nimic). */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Respect pentru utilizatorii care preferă mișcare redusă. Anulăm animațiile
+   decorative dar păstrăm tranzițiile fundamentale (hover, opacity). */
+@media (prefers-reduced-motion: reduce) {
+  body::before,
+  body::after {
+    animation: none !important;
+  }
+  .note-card:hover,
+  .publish-btn:hover {
+    animation: none !important;
+  }
+}
+
 h1,
 h2 {
   font-family: var(--heading);

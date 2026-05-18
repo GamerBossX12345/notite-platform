@@ -2,23 +2,23 @@
 // Carduri scadente, flip pe click, rating Again/Hard/Good/Easy.
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
-
-// Mapping rating UI → SM-2 quality (0-5).
-// Again = 2 (resetează), Hard = 3 (corect cu efort), Good = 4 (corect normal), Easy = 5 (corect ușor).
-const RATINGS = [
-  { key: 'again', label: 'Iar',  quality: 2, color: '#dc2626', shortcut: '1' },
-  { key: 'hard',  label: 'Greu', quality: 3, color: '#f59e0b', shortcut: '2' },
-  { key: 'good',  label: 'Bun',  quality: 4, color: '#16a34a', shortcut: '3' },
-  { key: 'easy',  label: 'Ușor', quality: 5, color: '#3b82f6', shortcut: '4' },
-];
 
 export default function FlashcardsStudyPage() {
   const { user, loading: authLoading, darkMode } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const noteIdFilter = searchParams.get('noteId') || null;
+
+  const RATINGS = [
+    { key: 'again', label: t('flashcards.again'), quality: 2, color: '#dc2626', shortcut: '1' },
+    { key: 'hard',  label: t('flashcards.hard'),  quality: 3, color: '#f59e0b', shortcut: '2' },
+    { key: 'good',  label: t('flashcards.good'),  quality: 4, color: '#16a34a', shortcut: '3' },
+    { key: 'easy',  label: t('flashcards.easy'),  quality: 5, color: '#3b82f6', shortcut: '4' },
+  ];
 
   const [queue, setQueue]   = useState([]); // cards rămase
   const [idx, setIdx]       = useState(0);
@@ -62,7 +62,7 @@ export default function FlashcardsStudyPage() {
       }
       setShowBack(false);
     } catch (err) {
-      alert(err.response?.data?.error || 'Eroare la salvarea reviewului');
+      alert(err.response?.data?.error || t('common.saveError'));
     } finally {
       setSubmitting(false);
     }
@@ -85,36 +85,31 @@ export default function FlashcardsStudyPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [current, showBack, queue, idx, submitting]); // eslint-disable-line
 
-  if (authLoading || !user) return <p>Se încarcă...</p>;
-  if (loading) return <p style={{ textAlign: 'center', padding: 32 }}>Se încarcă...</p>;
+  if (authLoading || !user) return <p>{t('common.loading')}</p>;
+  if (loading) return <p style={{ textAlign: 'center', padding: 32 }}>{t('common.loading')}</p>;
 
-  // Sesiune finalizată
   const done = !current;
 
   if (done) {
     return (
       <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center', padding: 24 }}>
         <h1 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>
-          {stats.reviewed > 0 ? '🎉 Sesiune terminată!' : '✓ Niciun card scadent'}
+          {stats.reviewed > 0 ? '🎉 ' + t('flashcards.finished') : '✓ ' + t('flashcards.finished')}
         </h1>
-        {stats.reviewed > 0 ? (
+        {stats.reviewed > 0 && (
           <>
             <p style={{ color: darkMode ? '#a89bc4' : '#666' }}>
-              Ai revizuit <strong>{stats.reviewed}</strong> {stats.reviewed === 1 ? 'card' : 'carduri'}.
+              <strong>{stats.reviewed}</strong>
             </p>
             <div style={statsRowStyle(darkMode)}>
-              <StatTile label="Iar"   value={stats.again} color="#dc2626" darkMode={darkMode} />
-              <StatTile label="Greu"  value={stats.hard}  color="#f59e0b" darkMode={darkMode} />
-              <StatTile label="Bun"   value={stats.good}  color="#16a34a" darkMode={darkMode} />
-              <StatTile label="Ușor"  value={stats.easy}  color="#3b82f6" darkMode={darkMode} />
+              <StatTile label={t('flashcards.again')} value={stats.again} color="#dc2626" darkMode={darkMode} />
+              <StatTile label={t('flashcards.hard')}  value={stats.hard}  color="#f59e0b" darkMode={darkMode} />
+              <StatTile label={t('flashcards.good')}  value={stats.good}  color="#16a34a" darkMode={darkMode} />
+              <StatTile label={t('flashcards.easy')}  value={stats.easy}  color="#3b82f6" darkMode={darkMode} />
             </div>
           </>
-        ) : (
-          <p style={{ color: darkMode ? '#a89bc4' : '#666' }}>
-            Revino mai târziu — algoritmul SM-2 a programat următoarele revizuiri.
-          </p>
         )}
-        <Link to="/flashcards" style={backLinkStyle(darkMode)}>← Înapoi la flashcards</Link>
+        <Link to="/flashcards" style={backLinkStyle(darkMode)}>← {t('flashcards.backToList')}</Link>
       </div>
     );
   }
@@ -122,7 +117,7 @@ export default function FlashcardsStudyPage() {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: 16 }}>
       <div style={progressStyle(darkMode)}>
-        Card {idx + 1} / {queue.length} • Revizuite: {stats.reviewed}
+        {idx + 1} / {queue.length} • {stats.reviewed}
       </div>
 
       <div
@@ -133,24 +128,24 @@ export default function FlashcardsStudyPage() {
       >
         {!showBack ? (
           <>
-            <div style={cardLabelStyle(darkMode)}>Întrebare</div>
+            <div style={cardLabelStyle(darkMode)}>?</div>
             <div style={cardTextStyle(darkMode)}>{current.front}</div>
-            <div style={cardHintStyle(darkMode)}>Click sau spațiu pentru a vedea răspunsul</div>
+            <div style={cardHintStyle(darkMode)}>{t('flashcards.show')}</div>
           </>
         ) : (
           <>
-            <div style={cardLabelStyle(darkMode)}>Întrebare</div>
+            <div style={cardLabelStyle(darkMode)}>?</div>
             <div style={{ ...cardTextStyle(darkMode), fontSize: 18, opacity: 0.7, marginBottom: 16 }}>
               {current.front}
             </div>
             <hr style={hrStyle(darkMode)} />
-            <div style={cardLabelStyle(darkMode)}>Răspuns</div>
+            <div style={cardLabelStyle(darkMode)}>!</div>
             <div style={cardTextStyle(darkMode)}>{current.back}</div>
           </>
         )}
         {current.note && (
           <div style={noteRefStyle(darkMode)}>
-            din <Link to={`/notes/${current.note.id}`} onClick={e => e.stopPropagation()} style={{ color: 'inherit' }}>
+            <Link to={`/notes/${current.note.id}`} onClick={e => e.stopPropagation()} style={{ color: 'inherit' }}>
               {current.note.title}
             </Link>
           </div>
@@ -159,9 +154,6 @@ export default function FlashcardsStudyPage() {
 
       {showBack && (
         <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#666', textAlign: 'center', marginBottom: 8 }}>
-            Cât de bine știai?
-          </div>
           <div style={ratingRowStyle}>
             {RATINGS.map(r => (
               <button
@@ -169,7 +161,6 @@ export default function FlashcardsStudyPage() {
                 onClick={() => handleRate(r.quality, r.key)}
                 disabled={submitting}
                 style={ratingBtnStyle(darkMode, r.color)}
-                title={`Shortcut: ${r.shortcut}`}
               >
                 <div style={{ fontSize: 16, fontWeight: 700 }}>{r.label}</div>
                 <div style={{ fontSize: 10, opacity: 0.7 }}>{r.shortcut}</div>
@@ -180,7 +171,7 @@ export default function FlashcardsStudyPage() {
       )}
 
       <div style={{ marginTop: 24, textAlign: 'center' }}>
-        <Link to="/flashcards" style={backLinkStyle(darkMode)}>← Întrerupe sesiunea</Link>
+        <Link to="/flashcards" style={backLinkStyle(darkMode)}>← {t('flashcards.backToList')}</Link>
       </div>
     </div>
   );

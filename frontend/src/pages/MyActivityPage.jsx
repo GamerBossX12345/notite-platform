@@ -3,6 +3,7 @@
 // acțiunea — doar acțiunea, detaliile și data.
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -22,6 +23,8 @@ const ACTION_LABEL = {
 export default function MyActivityPage() {
   const { user, loading: authLoading, darkMode } = useAuth();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('en') ? 'en-US' : 'ro-RO';
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,17 +45,13 @@ export default function MyActivityPage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto' }}>
-      <h1 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>📋 Activitate cont</h1>
-      <p style={{ color: darkMode ? '#a89bc4' : '#666', fontSize: 14, marginBottom: 24 }}>
-        Istoricul acțiunilor administrative aplicate contului tău. Pentru transparență,
-        toate banurile/avertismentele/schimbările de rol sunt înregistrate aici.
-      </p>
+      <h1 style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>📋 {t('activity.title')}</h1>
 
-      {loading && <p>Se încarcă...</p>}
-      {error && <p style={{ color: '#ef4444' }}>Eroare: {error}</p>}
+      {loading && <p>{t('activity.loading')}</p>}
+      {error && <p style={{ color: '#ef4444' }}>{t('common.error')}: {error}</p>}
 
       {!loading && !error && entries.length === 0 && (
-        <p style={{ color: darkMode ? '#a89bc4' : '#666' }}>Niciun eveniment înregistrat.</p>
+        <p style={{ color: darkMode ? '#a89bc4' : '#666' }}>{t('activity.empty')}</p>
       )}
 
       {!loading && !error && entries.length > 0 && (
@@ -69,7 +68,7 @@ export default function MyActivityPage() {
                   <span style={{ fontSize: 18 }}>{cfg.icon}</span>
                   <strong style={{ color: cfg.color }}>{cfg.label}</strong>
                   <span style={{ marginLeft: 'auto', fontSize: 12, color: darkMode ? '#867aa3' : '#888' }}>
-                    {new Date(entry.createdAt).toLocaleString('ro-RO')}
+                    {new Date(entry.createdAt).toLocaleString(locale)}
                   </span>
                 </div>
                 {detailsObj && (

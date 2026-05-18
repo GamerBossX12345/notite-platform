@@ -21,15 +21,39 @@ dotenv.config(); // încarcă .env în process.env
 
 const app = express();
 
+// Trust primul proxy (load balancer / Nginx). Necesar ca express-rate-limit să
+// citească corect IP-ul real din X-Forwarded-For în loc de IP-ul proxy-ului.
+// În dev fără proxy, e benign — req.ip rămâne 127.0.0.1.
+app.set('trust proxy', 1);
+
 // Helmet — adaugă headerele standard de securitate (X-Frame-Options,
 // Strict-Transport-Security, X-Content-Type-Options, Referrer-Policy etc.).
 // `crossOriginResourcePolicy` setat pe `cross-origin` ca să nu blocăm
 // fișierele din /uploads pentru frontend-ul de pe alt origin în dev.
+//
+// CSP: serverul e API JSON, deci nu randează HTML cu scripturi. Setăm o
+// politică minimă — default-src 'none' și permitem doar imagini/media (pentru
+// /uploads servit static) + connect/font/style 'self'. Frontend-ul Vite are
+// propriul index.html și își poate seta CSP-ul prin <meta http-equiv> dacă e
+// nevoie; aici ne uităm doar la răspunsurile API.
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-  // CSP-ul default al helmet e prea agresiv pentru API; îl lăsăm pe frontend
-  // să-și seteze propriul CSP în <meta>, dacă e nevoie.
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'none'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      mediaSrc: ["'self'"],
+      connectSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      fontSrc: ["'self'", 'data:'],
+      frameAncestors: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'self'"],
+    },
+  },
+  referrerPolicy: { policy: 'no-referrer' },
+  hsts: { maxAge: 15552000, includeSubDomains: true },
 }));
 
 // CORS — permite requests de la frontend. În prod, restrictioneaza la

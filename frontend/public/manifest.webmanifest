@@ -1,0 +1,21 @@
+{
+  "name": "Notițe — platformă colaborativă",
+  "short_name": "Notițe",
+  "description": "Platformă de notițe colaborative pentru elevi de gimnaziu și liceu, cu AI quiz, flashcards și căutare semantică.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "ro",
+  "background_color": "#0a0e27",
+  "theme_color": "#1a0b2e",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

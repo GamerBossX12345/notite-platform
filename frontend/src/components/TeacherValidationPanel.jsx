@@ -3,12 +3,15 @@
 // - Profesorii verificați (alții decât autorul) pot da/retrage propriul verdict
 //   și pot atașa un mesaj scurt cu motivul.
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { TeacherBadge } from './Badges.jsx';
 
 export function TeacherValidationPanel({ note }) {
   const { user, darkMode } = useAuth();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('en') ? 'en-US' : 'ro-RO';
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [comment, setComment] = useState('');
@@ -45,20 +48,20 @@ export function TeacherValidationPanel({ note }) {
       setPendingVerdict(null);
       setComment('');
     } catch (err) {
-      alert(err.response?.data?.error || 'Eroare la validare');
+      alert(err.response?.data?.error || t('common.error'));
     } finally {
       setSubmitting(false);
     }
   }
 
   async function handleRemove() {
-    if (!confirm('Retragi validarea ta?')) return;
+    if (!confirm(t('common.confirm') + '?')) return;
     setSubmitting(true);
     try {
       await api.delete(`/notes/${note.id}/validate`);
       setItems(prev => prev.filter(v => v.teacher?.id !== user.id));
     } catch (err) {
-      alert(err.response?.data?.error || 'Eroare');
+      alert(err.response?.data?.error || t('common.error'));
     } finally {
       setSubmitting(false);
     }
@@ -75,17 +78,16 @@ export function TeacherValidationPanel({ note }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 18, color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>
-          Evaluare profesori
+          {t('note.validate')}
         </h3>
         <span style={summaryPill('correct', darkMode)}>
-          ✓ Corectă: {correctCount}
+          ✓ {correctCount}
         </span>
         <span style={summaryPill('incorrect', darkMode)}>
-          ✗ Greșeli: {incorrectCount}
+          ✗ {incorrectCount}
         </span>
       </div>
 
-      {/* Acțiuni profesor */}
       {canValidate && (
         <div style={{ marginTop: 14 }}>
           {!showCommentBox ? (
@@ -95,18 +97,18 @@ export function TeacherValidationPanel({ note }) {
                 disabled={submitting}
                 style={actionBtn('correct', myValidation?.verdict === 'CORRECT')}
               >
-                ✓ Marchează corectă
+                ✓ {t('note.markCorrect')}
               </button>
               <button
                 onClick={() => { setPendingVerdict('INCORRECT'); setShowCommentBox(true); }}
                 disabled={submitting}
                 style={actionBtn('incorrect', myValidation?.verdict === 'INCORRECT')}
               >
-                ✗ Marchează greșită
+                ✗ {t('note.markIncorrect')}
               </button>
               {myValidation && (
                 <button onClick={handleRemove} disabled={submitting} style={removeBtn(darkMode)}>
-                  Retrage validarea mea
+                  {t('common.delete')}
                 </button>
               )}
             </div>
@@ -116,17 +118,12 @@ export function TeacherValidationPanel({ note }) {
               border: darkMode ? '1px solid rgba(168, 85, 247, 0.3)' : '1px solid #e5e7eb',
               background: darkMode ? 'rgba(20, 8, 50, 0.5)' : '#fafafa',
             }}>
-              <p style={{ margin: '0 0 8px', fontSize: 13, color: darkMode ? '#d4c8ff' : '#222' }}>
-                {pendingVerdict === 'CORRECT'
-                  ? 'Confirmi că notița este corectă (opțional: adaugă o observație):'
-                  : 'Explică pe scurt ce este greșit (opțional, dar recomandat):'}
-              </p>
               <textarea
                 value={comment}
                 onChange={e => setComment(e.target.value)}
                 rows={3}
                 maxLength={1000}
-                placeholder="Observație (max 1000 caractere)..."
+                placeholder={t('common.details')}
                 style={textareaStyle(darkMode)}
               />
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -135,13 +132,13 @@ export function TeacherValidationPanel({ note }) {
                   disabled={submitting}
                   style={actionBtn(pendingVerdict === 'CORRECT' ? 'correct' : 'incorrect', true)}
                 >
-                  {submitting ? 'Se trimite...' : 'Trimite validarea'}
+                  {submitting ? t('banned.submitting') : t('common.submit')}
                 </button>
                 <button
                   onClick={() => { setShowCommentBox(false); setPendingVerdict(null); setComment(''); }}
                   style={cancelBtn(darkMode)}
                 >
-                  Anulează
+                  {t('common.cancel')}
                 </button>
               </div>
             </div>
@@ -149,13 +146,12 @@ export function TeacherValidationPanel({ note }) {
         </div>
       )}
 
-      {/* Listare validări */}
       <div style={{ marginTop: 14 }}>
         {loading ? (
-          <p style={{ color: darkMode ? '#a89bc4' : '#888', fontSize: 13 }}>Se încarcă...</p>
+          <p style={{ color: darkMode ? '#a89bc4' : '#888', fontSize: 13 }}>{t('common.loading')}</p>
         ) : items.length === 0 ? (
           <p style={{ color: darkMode ? '#a89bc4' : '#888', fontSize: 13 }}>
-            Niciun profesor nu a evaluat încă această notiță.
+            —
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -166,11 +162,11 @@ export function TeacherValidationPanel({ note }) {
                     {v.verdict === 'CORRECT' ? '✓' : '✗'}
                   </span>
                   <strong style={{ color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>
-                    {v.teacher?.username || 'profesor'}
+                    {v.teacher?.username || '—'}
                   </strong>
                   <TeacherBadge />
                   <span style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#666', marginLeft: 'auto' }}>
-                    {new Date(v.createdAt).toLocaleDateString('ro-RO')}
+                    {new Date(v.createdAt).toLocaleDateString(locale)}
                   </span>
                 </div>
                 {v.comment && (

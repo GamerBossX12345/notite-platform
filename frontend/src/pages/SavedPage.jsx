@@ -1,12 +1,14 @@
 // /saved — lista notițelor salvate de userul curent.
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { NoteCard } from '../components/NoteCard.jsx';
 
 export default function SavedPage() {
   const { user, loading: authLoading, darkMode } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -37,31 +39,25 @@ export default function SavedPage() {
     }, { replace: true });
   }
 
-  if (authLoading || !user) return <p>Se încarcă...</p>;
+  if (authLoading || !user) return <p>{t('common.loading')}</p>;
 
   return (
     <div style={{ maxWidth: 880, margin: '0 auto' }}>
-      <h1 style={titleStyle(darkMode)}>❤️ Notițe salvate</h1>
-      <p style={mutedStyle(darkMode)}>
-        Notițele pe care le-ai marcat ca salvate. Apasă din nou pe inimă într-o notiță ca să o elimini de aici.
-      </p>
+      <h1 style={titleStyle(darkMode)}>❤️ {t('saved.title')}</h1>
 
-      {loading && <p>Se încarcă...</p>}
-      {error && <p style={{ color: '#ef4444' }}>Eroare: {error}</p>}
+      {loading && <p>{t('common.loading')}</p>}
+      {error && <p style={{ color: '#ef4444' }}>{t('common.error')}: {error}</p>}
 
       {!loading && !error && (
         <>
           <p style={{ color: darkMode ? '#a89bc4' : '#888', fontSize: 13, marginBottom: 12 }}>
-            {data.total} {data.total === 1 ? 'notiță' : 'notițe'}
+            {data.total}
           </p>
 
           {data.notes.length === 0 ? (
             <div style={emptyStateStyle(darkMode)}>
-              <p style={{ fontSize: 18, marginBottom: 8 }}>📭 Nicio notiță salvată încă</p>
-              <p style={{ color: darkMode ? '#a89bc4' : '#666', marginBottom: 16 }}>
-                Apasă pe inima 🤍 dintr-o notiță ca să o adaugi aici.
-              </p>
-              <Link to="/" style={linkStyle(darkMode)}>← Caută notițe</Link>
+              <p style={{ fontSize: 18, marginBottom: 8 }}>📭 {t('saved.empty')}</p>
+              <Link to="/" style={linkStyle(darkMode)}>← {t('menu.home')}</Link>
             </div>
           ) : (
             <div style={gridStyle}>
@@ -72,13 +68,13 @@ export default function SavedPage() {
           {data.totalPages > 1 && (
             <div style={paginationStyle}>
               <button onClick={() => setPage(page - 1)} disabled={page <= 1} style={pageButtonStyle(darkMode)}>
-                ‹ Anterior
+                ‹ {t('common.previous')}
               </button>
               <span style={{ padding: '6px 12px', color: darkMode ? '#a89bc4' : '#888', fontSize: 14 }}>
-                Pagina {page} din {data.totalPages}
+                {page} / {data.totalPages}
               </span>
               <button onClick={() => setPage(page + 1)} disabled={page >= data.totalPages} style={pageButtonStyle(darkMode)}>
-                Următor ›
+                {t('common.next')} ›
               </button>
             </div>
           )}

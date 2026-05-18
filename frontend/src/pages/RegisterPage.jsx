@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth.js';
 import { ALL_SUBJECTS, subjectsForGrade } from '../data/subjects.js';
 
@@ -8,6 +9,7 @@ const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
 export default function RegisterPage() {
   const { register, darkMode } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [name, setName]                     = useState('');
   const [email, setEmail]                   = useState('');
@@ -41,7 +43,7 @@ export default function RegisterPage() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError('Parolele nu coincid');
+      setError(t('auth.registerError') + ': ' + t('common.password'));
       return;
     }
 
@@ -54,7 +56,7 @@ export default function RegisterPage() {
         navigate('/');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Eroare la înregistrare');
+      setError(err.response?.data?.error || t('auth.registerError'));
     } finally {
       setSubmitting(false);
     }
@@ -65,13 +67,11 @@ export default function RegisterPage() {
       <div style={{ maxWidth: 480, margin: '64px auto', textAlign: 'center' }}>
         <div style={cardStyle(darkMode)}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>📧</div>
-          <h2 style={{ marginTop: 0 }}>Verifică-ți emailul</h2>
-          <p>Ți-am trimis un link de confirmare la <strong>{email}</strong>.</p>
-          <p style={{ fontSize: 13, color: darkMode ? '#a89bc4' : '#666' }}>
-            Linkul expiră în 24 de ore. Verifică și folderul spam dacă nu îl găsești.
-          </p>
+          <h2 style={{ marginTop: 0 }}>{t('auth.emailVerificationTitle')}</h2>
+          <p>{t('auth.registerSuccess')}</p>
+          <p><strong>{email}</strong></p>
           <Link to="/login" style={{ color: darkMode ? '#c9a8ff' : '#be185d', fontWeight: 600, textDecoration: 'none' }}>
-            ← Înapoi la login
+            ← {t('auth.goToLogin')}
           </Link>
         </div>
       </div>
@@ -80,40 +80,40 @@ export default function RegisterPage() {
 
   return (
     <div style={{ maxWidth: 420, margin: '40px auto' }}>
-      <h1 style={{ marginTop: 0, marginBottom: 40 }}>Înregistrare</h1>
+      <h1 style={{ marginTop: 0, marginBottom: 40 }}>{t('auth.registerTitle')}</h1>
 
       <div style={cardStyle(darkMode)}>
         <form onSubmit={handleSubmit}>
           <label style={labelStyle(darkMode)}>
-            Nume și prenume
+            {t('auth.fullName')}
             <input
               type="text" value={name} onChange={(e) => setName(e.target.value)}
               required autoComplete="name" style={inputStyle(darkMode)}
             />
           </label>
           <label style={labelStyle(darkMode)}>
-            Email
+            {t('common.email')}
             <input
               type="email" value={email} onChange={(e) => setEmail(e.target.value)}
               required style={inputStyle(darkMode)}
             />
           </label>
           <label style={labelStyle(darkMode)}>
-            Username
+            {t('common.username')}
             <input
               type="text" value={username} onChange={(e) => setUsername(e.target.value)}
               required minLength={3} style={inputStyle(darkMode)}
             />
           </label>
           <label style={labelStyle(darkMode)}>
-            Parolă <span style={hintStyle(darkMode)}>(minim 8 caractere)</span>
+            {t('common.password')} <span style={hintStyle(darkMode)}>({t('auth.passwordRules')})</span>
             <input
               type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               required minLength={8} style={inputStyle(darkMode)}
             />
           </label>
           <label style={labelStyle(darkMode)}>
-            Confirmă parola
+            {t('common.confirm')} {t('common.password')}
             <input
               type="password" value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -125,51 +125,43 @@ export default function RegisterPage() {
                   : null),
               }}
             />
-            {confirmPassword && password !== confirmPassword && (
-              <span style={{ color: '#dc3545', fontSize: 12 }}>Parolele nu coincid</span>
-            )}
           </label>
           <label style={labelStyle(darkMode)}>
-            Școala <span style={hintStyle(darkMode)}>(opțional)</span>
+            {t('auth.school')}
             <input
               type="text" value={school} onChange={(e) => setSchool(e.target.value)}
-              placeholder="ex: Colegiul Național..." style={inputStyle(darkMode)}
+              style={inputStyle(darkMode)}
             />
           </label>
           <label style={labelStyle(darkMode)}>
-            Clasa <span style={hintStyle(darkMode)}>(opțional)</span>
+            {t('auth.grade')}
             <select value={grade} onChange={(e) => setGrade(e.target.value)} style={inputStyle(darkMode)}>
-              <option value="">— nu specifica —</option>
+              <option value="">— {t('auth.selectGrade')} —</option>
               {GRADE_LEVELS.map(g => (
-                <option key={g} value={g}>a {g}-a</option>
+                <option key={g} value={g}>{g}</option>
               ))}
             </select>
           </label>
           <label style={labelStyle(darkMode)}>
-            Materie preferată <span style={hintStyle(darkMode)}>(opțional)</span>
+            {t('common.subject')}
             <select value={defaultSubject} onChange={(e) => setDefaultSubject(e.target.value)} style={inputStyle(darkMode)}>
-              <option value="">— nu specifica —</option>
+              <option value="">— {t('common.none')} —</option>
               {availableSubjects.map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
-            <span style={{ ...hintStyle(darkMode), display: 'block', marginTop: 4 }}>
-              {grade
-                ? `Doar materiile predate la clasa a ${grade}-a. Va fi filtrul implicit pe pagina principală — o poți schimba oricând din Setări.`
-                : 'Va fi filtrul implicit pe pagina principală. O poți schimba oricând din Setări.'}
-            </span>
           </label>
           {error && <p style={errorStyle(darkMode)}>❌ {error}</p>}
           <button type="submit" disabled={submitting} style={buttonStyle(darkMode, submitting)}>
-            {submitting ? 'Se trimite...' : 'Creează cont'}
+            {submitting ? t('auth.registerSubmitting') : t('auth.registerSubmit')}
           </button>
         </form>
       </div>
 
       <p style={{ marginTop: 16, textAlign: 'center', color: darkMode ? '#a89bc4' : '#666' }}>
-        Ai deja cont?{' '}
+        {t('auth.hasAccount')}{' '}
         <Link to="/login" style={{ color: darkMode ? '#c9a8ff' : '#be185d', fontWeight: 600 }}>
-          Login
+          {t('auth.loginLink')}
         </Link>
       </p>
     </div>

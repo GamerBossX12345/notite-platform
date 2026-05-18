@@ -1,43 +1,44 @@
 // Istoric vizite notițe — pagină proprie, separată de HomePage.
 // Sursa: useRecentNotes (localStorage, sincronizat între tab-uri).
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth.js';
 import { useRecentNotes } from '../hooks/useRecentNotes.js';
 
 export default function HistoryPage() {
   const { darkMode } = useAuth();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('en') ? 'en-US' : 'ro-RO';
   const { recent, clear, remove } = useRecentNotes();
+
+  function handleClear() {
+    if (confirm(t('history.confirmClear'))) clear();
+  }
 
   return (
     <div style={{ maxWidth: 900 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ margin: 0 }}>📖 Istoric notițe</h1>
+        <h1 style={{ margin: 0 }}>📖 {t('history.title')}</h1>
         {recent.length > 0 && (
           <button
-            onClick={clear}
+            onClick={handleClear}
             style={{
               background: 'transparent',
               border: darkMode ? '1px solid rgba(220, 38, 38, 0.5)' : '1px solid #dc2626',
               color: darkMode ? '#fca5a5' : '#b91c1c',
               padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 13,
             }}
-            title="Șterge tot istoricul"
           >
-            🗑 Șterge tot istoricul
+            🗑 {t('history.clearAll')}
           </button>
         )}
       </div>
-      <p style={{ color: darkMode ? '#a89bc4' : '#666', marginBottom: 24, fontSize: 14 }}>
-        Aici găsești ultimele notițe pe care le-ai vizitat. Istoricul e stocat
-        local în browser (nu pe server) — dacă schimbi browserul sau ștergi
-        datele, dispare.
-      </p>
 
       {recent.length === 0 ? (
         <div style={emptyStyle(darkMode)}>
-          <p style={{ margin: 0 }}>Nu ai vizitat încă nicio notiță.</p>
+          <p style={{ margin: 0 }}>{t('history.empty')}</p>
           <Link to="/" style={{ marginTop: 8, display: 'inline-block', color: darkMode ? '#c9a8ff' : '#6366f1', fontWeight: 600 }}>
-            Înapoi la pagina principală →
+            {t('menu.home')} →
           </Link>
         </div>
       ) : (
@@ -47,17 +48,17 @@ export default function HistoryPage() {
               <Link to={`/notes/${item.id}`} style={linkStyle(darkMode)}>
                 <span style={{ fontSize: 15, fontWeight: 600 }}>{item.title}</span>
                 <span style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#888' }}>
-                  {item.subject} • clasa a {item.gradeLevel}-a
+                  {item.subject} • {item.gradeLevel}
                 </span>
                 {item.viewedAt && (
                   <span style={{ fontSize: 11, color: darkMode ? '#867aa3' : '#aaa', marginTop: 2 }}>
-                    vizitată {new Date(item.viewedAt).toLocaleString('ro-RO')}
+                    {t('history.visitedOn')} {new Date(item.viewedAt).toLocaleString(locale)}
                   </span>
                 )}
               </Link>
               <button
                 onClick={() => remove(item.id)}
-                title="Elimină din istoric"
+                aria-label={t('common.delete')}
                 style={removeBtnStyle(darkMode)}
               >
                 ✕

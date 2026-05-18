@@ -2,12 +2,14 @@
 // Afișează statistici și lista de "decks" (grupate pe notiță).
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function FlashcardsPage() {
   const { user, loading: authLoading, darkMode } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,57 +28,50 @@ export default function FlashcardsPage() {
   }, [user]);
 
   async function removeDeck(noteId) {
-    if (!confirm('Sigur ștergi toate flashcards-urile din acest deck?')) return;
+    if (!confirm(t('flashcards.confirmDelete'))) return;
     try {
       await api.delete('/auth/me/flashcards', { params: { noteId } });
-      // Reîncarcă
       const res = await api.get('/auth/me/flashcards/stats');
       setStats(res.data);
     } catch (err) {
-      alert(err.response?.data?.error || 'Eroare la ștergere');
+      alert(err.response?.data?.error || t('common.deleteError'));
     }
   }
 
-  if (authLoading || !user) return <p>Se încarcă...</p>;
+  if (authLoading || !user) return <p>{t('common.loading')}</p>;
 
   return (
     <div style={{ maxWidth: 880, margin: '0 auto' }}>
-      <h1 style={titleStyle(darkMode)}>🎴 Flashcards</h1>
-      <p style={mutedStyle(darkMode)}>
-        Cartonașe pentru repetiție spațială. Algoritmul SM-2 îți programează revizuirile
-        astfel încât să reții pe termen lung cu efort minim.
-      </p>
+      <h1 style={titleStyle(darkMode)}>🎴 {t('flashcards.title')}</h1>
+      <p style={mutedStyle(darkMode)}>{t('flashcards.subtitle')}</p>
 
-      {loading && <p>Se încarcă...</p>}
-      {error && <p style={{ color: '#ef4444' }}>Eroare: {error}</p>}
+      {loading && <p>{t('common.loading')}</p>}
+      {error && <p style={{ color: '#ef4444' }}>{t('common.error')}: {error}</p>}
 
       {stats && (
         <>
           <div style={statsGridStyle}>
-            <StatCard label="Total carduri" value={stats.total} darkMode={darkMode} />
-            <StatCard label="Scadente acum" value={stats.due} highlight darkMode={darkMode} />
-            <StatCard label="Scadente azi" value={stats.dueToday} darkMode={darkMode} />
+            <StatCard label={t('flashcards.totalCards')} value={stats.total} darkMode={darkMode} />
+            <StatCard label={t('flashcards.dueToday')} value={stats.due} highlight darkMode={darkMode} />
+            <StatCard label={t('flashcards.newCards')} value={stats.dueToday} darkMode={darkMode} />
           </div>
 
           <div style={{ marginTop: 24 }}>
             {stats.due > 0 ? (
               <Link to="/flashcards/study" style={primaryBtnStyle(darkMode)}>
-                ▶ Începe sesiunea de studiu ({stats.due} {stats.due === 1 ? 'card' : 'carduri'})
+                ▶ {t('flashcards.study')} ({stats.due})
               </Link>
             ) : (
               <div style={readyMsgStyle(darkMode)}>
-                ✓ Niciun card scadent acum. Revino mai târziu.
+                ✓ {t('flashcards.finished')}
               </div>
             )}
           </div>
 
-          <h2 style={{ ...sectionTitleStyle(darkMode), marginTop: 32 }}>Decks pe notițe</h2>
+          <h2 style={{ ...sectionTitleStyle(darkMode), marginTop: 32 }}>{t('flashcards.deck')}</h2>
           {stats.decks.length === 0 ? (
             <div style={emptyStyle(darkMode)}>
-              <p style={{ fontSize: 16, marginBottom: 8 }}>📭 Niciun deck încă.</p>
-              <p style={{ fontSize: 13, color: darkMode ? '#a89bc4' : '#666', margin: 0 }}>
-                Deschide o notiță și folosește butonul <strong>🎴 Generează flashcards</strong>.
-              </p>
+              <p style={{ fontSize: 16, marginBottom: 8 }}>📭 {t('flashcards.empty')}</p>
             </div>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -87,13 +82,13 @@ export default function FlashcardsPage() {
                       {d.note.title}
                     </Link>
                     <div style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#888' }}>
-                      {d.note.subject} • {d.count} {d.count === 1 ? 'card' : 'carduri'}
+                      {d.note.subject} • {d.count}
                     </div>
                   </div>
                   <Link to={`/flashcards/study?noteId=${d.noteId}`} style={smallBtnStyle(darkMode)}>
-                    Studiază
+                    {t('flashcards.study')}
                   </Link>
-                  <button onClick={() => removeDeck(d.noteId)} style={removeBtnStyle(darkMode)} title="Șterge deck">🗑</button>
+                  <button onClick={() => removeDeck(d.noteId)} style={removeBtnStyle(darkMode)} aria-label={t('flashcards.deleteDeck')}>🗑</button>
                 </li>
               ))}
             </ul>

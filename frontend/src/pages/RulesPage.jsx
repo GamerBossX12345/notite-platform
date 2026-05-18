@@ -1,15 +1,15 @@
 // Pagină de regulament — rezumatul regulilor platformei. Linkată din footer.
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function RulesPage() {
   const { darkMode } = useAuth();
+  const { t } = useTranslation();
   return (
     <div style={{ maxWidth: 800 }}>
-      <h1 style={{ marginTop: 0 }}>📜 Regulamentul platformei</h1>
+      <h1 style={{ marginTop: 0 }}>📜 {t('rules.title')}</h1>
       <p style={mutedStyle(darkMode)}>
-        Notițe e un spațiu colaborativ pentru elevi. Ca să rămână util și
-        sigur pentru toți, te rugăm să respecți regulile de mai jos.
-        Încălcările pot duce la avertismente, suspendări sau ban permanent.
+        {t('rules.subtitle')}
       </p>
 
       <Section title="1. Conținut acceptat" darkMode={darkMode}>

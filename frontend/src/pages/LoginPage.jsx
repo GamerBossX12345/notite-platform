@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function LoginPage() {
   const { login, darkMode } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -24,11 +26,11 @@ export default function LoginPage() {
       const data = err.response?.data;
       if (data?.code === 'DEVICE_VERIFICATION_REQUIRED') {
         setDeviceNotice({
-          message: data.error || 'Acces de pe dispozitiv nou. Verifică-ți emailul.',
+          message: data.error || t('auth.deviceVerificationMessage'),
           email: data.email,
         });
       } else {
-        setError(data?.error || 'Eroare la autentificare');
+        setError(data?.error || t('auth.loginError'));
       }
     } finally {
       setSubmitting(false);
@@ -37,12 +39,12 @@ export default function LoginPage() {
 
   return (
     <div style={{ maxWidth: 420, margin: '40px auto' }}>
-      <h1 style={{ marginTop: 0, marginBottom: 40 }}>Login</h1>
+      <h1 style={{ marginTop: 0, marginBottom: 40 }}>{t('auth.loginTitle')}</h1>
 
       <div style={cardStyle(darkMode)}>
         <form onSubmit={handleSubmit}>
           <label style={labelStyle(darkMode)}>
-            Email sau username
+            {t('auth.identifier')}
             <input
               type="text"
               value={identifier}
@@ -53,7 +55,7 @@ export default function LoginPage() {
             />
           </label>
           <label style={labelStyle(darkMode)}>
-            Parolă
+            {t('common.password')}
             <input
               type="password"
               value={password}
@@ -65,25 +67,25 @@ export default function LoginPage() {
           {error && <p style={errorStyle(darkMode)}>❌ {error}</p>}
           {deviceNotice && (
             <div style={noticeStyle(darkMode)}>
-              <strong>📩 Verificare dispozitiv necesară</strong>
+              <strong>📩 {t('auth.deviceVerificationRequired')}</strong>
               <p style={{ margin: '6px 0 0' }}>
                 {deviceNotice.message}
                 {deviceNotice.email && (
-                  <> Am trimis un link la <strong>{deviceNotice.email}</strong>.</>
+                  <> {t('auth.deviceVerificationSent', { email: deviceNotice.email })}</>
                 )}
               </p>
             </div>
           )}
           <button type="submit" disabled={submitting} style={buttonStyle(darkMode, submitting)}>
-            {submitting ? 'Se trimite...' : 'Intră în cont'}
+            {submitting ? t('auth.loginSubmitting') : t('auth.loginSubmit')}
           </button>
         </form>
       </div>
 
       <p style={{ marginTop: 16, textAlign: 'center', color: darkMode ? '#a89bc4' : '#666' }}>
-        Nu ai cont?{' '}
+        {t('auth.noAccount')}{' '}
         <Link to="/register" style={{ color: darkMode ? '#c9a8ff' : '#be185d', fontWeight: 600 }}>
-          Înregistrează-te
+          {t('auth.registerLink')}
         </Link>
       </p>
     </div>

@@ -4,6 +4,7 @@
 import { createPortal } from 'react-dom';
 import { useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -11,6 +12,17 @@ export default function Layout() {
   const { user, logout, darkMode, updateDarkMode, sidebarOpen, setSidebarOpen, mainMenuOpen, setMainMenuOpen, leaderboardHidden, setLeaderboardHidden } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t, i18n } = useTranslation();
+
+  // Actualizează `<html lang>` ca cititoarele de ecran să anunțe corect limba.
+  useEffect(() => {
+    document.documentElement.lang = i18n.language?.startsWith('en') ? 'en' : 'ro';
+  }, [i18n.language]);
+
+  function toggleLanguage() {
+    const next = i18n.language?.startsWith('en') ? 'ro' : 'en';
+    i18n.changeLanguage(next);
+  }
   // Filtrele au sens doar pe pagina principală (listing-ul de notițe).
   const isHomePage = location.pathname === '/';
 
@@ -33,13 +45,13 @@ export default function Layout() {
   }
 
   async function handleDeleteSelf() {
-    if (!confirm('Sigur vrei să ștergi definitiv contul? Acțiunea este ireversibilă.')) return;
+    if (!confirm(t('settings.deleteAccountConfirm'))) return;
     try {
       await api.delete('/auth/account', { data: { confirm: true } });
       logout();
       navigate('/', { replace: true });
     } catch (err) {
-      alert(err.response?.data?.error || 'Eroare la ștergere');
+      alert(err.response?.data?.error || t('common.deleteError'));
     }
   }
 
@@ -59,37 +71,40 @@ export default function Layout() {
     : { ...themeToggleStyle, border: '1px solid rgba(244, 114, 182, 0.4)', background: 'rgba(244, 114, 182, 0.12)' };
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: '100vh' }}>
+      {/* Skip-link pentru utilizatorii cu screen reader / navigare la tastatură.
+         Vizibil doar la focus (vezi `.skip-link` în index.css). */}
+      <a href="#main-content" className="skip-link">{t('common.skipToContent')}</a>
       <nav style={navStyle(darkMode)}>
         {user && (
           <button
             onClick={() => setMainMenuOpen(true)}
-            title="Meniu"
-            aria-label="Deschide meniul principal"
+            title={t('nav.menu')}
+            aria-label={t('nav.openMenu')}
             aria-expanded={mainMenuOpen}
             style={menuToggleStyle(darkMode)}
           >
             ☰
           </button>
         )}
-        <Link to="/" style={linkStyle}>📚 Notițe</Link>
+        <Link to="/" style={linkStyle}>📚 {t('common.appName')}</Link>
         <div style={{ flex: 1 }} />
         {user ? (
           user.banned ? (
             <>
-              <span style={{ color: '#dc2626', fontWeight: 600 }}>🚫 Cont banat</span>
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>🚫 {t('nav.banned')}</span>
               <Link to="/banned" style={{ ...btnStyle, textDecoration: 'none', color: '#fcd34d', border: '1px solid rgba(245, 158, 11, 0.5)', background: 'rgba(245, 158, 11, 0.15)' }}>
-                📩 Cerere de unban
+                📩 {t('nav.banAppeal')}
               </Link>
               <button onClick={handleDeleteSelf} style={{ ...btnStyle, color: '#fca5a5', border: '1px solid rgba(220, 38, 38, 0.5)', background: 'rgba(220, 38, 38, 0.15)' }}>
-                🗑 Șterge contul
+                🗑 {t('nav.deleteAccount')}
               </button>
-              <button onClick={handleLogout} style={btnStyle}>Logout</button>
+              <button onClick={handleLogout} style={btnStyle}>{t('nav.logout')}</button>
             </>
           ) : (
           <>
             <span>
-              Salut,{' '}
+              {t('nav.greeting')},{' '}
               <Link to={`/profile/${user.username}`} style={{ color: '#c9a8ff', textDecoration: 'none', fontWeight: 600 }}>
                 {user.name || user.username}
               </Link>
@@ -97,27 +112,34 @@ export default function Layout() {
             {isHomePage && (
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                title={sidebarOpen ? 'Închide bara laterală' : 'Deschide bara laterală'}
+                title={sidebarOpen ? t('nav.closeFilters') : t('nav.openFilters')}
                 style={{ ...btnStyle, padding: '6px 10px' }}
               >
-                ☰ Filtre
+                ☰ {t('nav.filters')}
               </button>
             )}
-            <Link to="/saved" style={linkStyle} title="Notițe salvate" aria-label="Notițe salvate">❤️</Link>
-            {/* Setări + Admin sunt accesibile din meniul lateral (☰) ca să curățăm header-ul. */}
-            <button onClick={handleLogout} style={btnStyle}>Logout</button>
+            <Link to="/saved" style={linkStyle} title={t('nav.savedNotes')} aria-label={t('nav.savedNotes')}>❤️</Link>
+            <button onClick={handleLogout} style={btnStyle}>{t('nav.logout')}</button>
           </>
           )
         ) : (
           <>
-            <Link to="/login" style={linkStyle}>Login</Link>
-            <Link to="/register" style={linkStyle}>Înregistrare</Link>
+            <Link to="/login" style={linkStyle}>{t('nav.login')}</Link>
+            <Link to="/register" style={linkStyle}>{t('nav.register')}</Link>
           </>
         )}
         <button
+          onClick={toggleLanguage}
+          title={t('common.language')}
+          aria-label={t('common.language')}
+          style={{ ...toggleStyle, fontSize: 12, fontWeight: 700 }}
+        >
+          {i18n.language?.startsWith('en') ? 'EN' : 'RO'}
+        </button>
+        <button
           onClick={() => updateDarkMode(!darkMode)}
-          title={darkMode ? 'Treci la modul luminos' : 'Treci la modul întunecat'}
-          aria-label={darkMode ? 'Treci la modul luminos' : 'Treci la modul întunecat'}
+          title={darkMode ? t('nav.darkOn') : t('nav.darkOff')}
+          aria-label={darkMode ? t('nav.darkOn') : t('nav.darkOff')}
           aria-pressed={!darkMode}
           style={toggleStyle}
         >
@@ -134,45 +156,45 @@ export default function Layout() {
           <aside
             role="dialog"
             aria-modal="true"
-            aria-label="Meniu principal"
+            aria-label={t('nav.menu')}
             style={menuDrawerStyle(darkMode)}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Meniu</h3>
+              <h3 style={{ margin: 0, fontSize: 16 }}>{t('nav.menu')}</h3>
               <button
                 onClick={() => setMainMenuOpen(false)}
-                aria-label="Închide meniul (Esc)"
+                aria-label={t('nav.closeMenu')}
                 style={menuCloseBtnStyle}
               >✕</button>
             </div>
 
             <div style={menuSectionStyle}>
-              <MenuItem icon="🏠" label="Acasă"           onClick={() => go('/')} />
-              <MenuItem icon="🔥" label="În tendințe"      onClick={() => go('/trending')} />
-              <MenuItem icon="🙋" label="Cereri de notițe" onClick={() => go('/requests')} />
-              <MenuItem icon="📓" label="Notițele mele"    onClick={() => go(`/profile/${user.username}`)} />
-              <MenuItem icon="❤️" label="Salvate"           onClick={() => go('/saved')} />
-              <MenuItem icon="📖" label="Istoric notițe"   onClick={() => go('/history')} />
-              <MenuItem icon="🎴" label="Flashcards"        onClick={() => go('/flashcards')} />
-              <MenuItem icon="📋" label="Activitate cont"  onClick={() => go('/activity')} />
-              <MenuItem icon="✏️" label="Adaugă notiță"   onClick={() => go('/upload')} />
-              <MenuItem icon="👥" label="Toți utilizatorii" onClick={() => go('/users')} />
+              <MenuItem icon="🏠" label={t('menu.home')}        onClick={() => go('/')} />
+              <MenuItem icon="🔥" label={t('menu.trending')}    onClick={() => go('/trending')} />
+              <MenuItem icon="🙋" label={t('menu.requests')}    onClick={() => go('/requests')} />
+              <MenuItem icon="📓" label={t('menu.myNotes')}     onClick={() => go(`/profile/${user.username}`)} />
+              <MenuItem icon="❤️" label={t('menu.saved')}        onClick={() => go('/saved')} />
+              <MenuItem icon="📖" label={t('menu.history')}     onClick={() => go('/history')} />
+              <MenuItem icon="🎴" label={t('menu.flashcards')}  onClick={() => go('/flashcards')} />
+              <MenuItem icon="📋" label={t('menu.activity')}    onClick={() => go('/activity')} />
+              <MenuItem icon="✏️" label={t('menu.upload')}      onClick={() => go('/upload')} />
+              <MenuItem icon="👥" label={t('menu.users')}       onClick={() => go('/users')} />
             </div>
 
             <div style={{ ...menuSectionStyle, borderTop: '1px solid rgba(120, 60, 200, 0.2)', paddingTop: 12 }}>
-              <MenuItem icon="⚙️" label="Setări" onClick={() => go('/settings')} />
+              <MenuItem icon="⚙️" label={t('menu.settings')} onClick={() => go('/settings')} />
               {isAdmin && (
                 <MenuItem
                   icon="🛡️"
-                  label="Panou admin"
+                  label={t('menu.admin')}
                   onClick={() => go('/admin')}
                   color={user.role === 'HEAD_ADMIN' ? '#9333ea' : '#cc6600'}
                 />
               )}
               {user.hasBanHistory && !user.banned && (
-                <MenuItem icon="📜" label="Istoric ban" onClick={() => go('/ban-history')} color="#f59e0b" />
+                <MenuItem icon="📜" label={t('menu.banHistory')} onClick={() => go('/ban-history')} color="#f59e0b" />
               )}
-              <MenuItem icon="🚪" label="Logout" onClick={handleLogout} color="#dc2626" />
+              <MenuItem icon="🚪" label={t('nav.logout')} onClick={handleLogout} color="#dc2626" />
             </div>
           </aside>
         </>,
@@ -185,15 +207,15 @@ export default function Layout() {
          prin main; când scrollezi în secțiunea de detalii (în afara wrapper-ului),
          footer-ul se „eliberează" și urcă natural cu pagina. */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 24px', position: 'relative', zIndex: 2, width: '100%', boxSizing: 'border-box', flex: 1 }}>
+        <main id="main-content" tabIndex={-1} style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 24px 24px', position: 'relative', zIndex: 2, width: '100%', boxSizing: 'border-box', flex: 1 }}>
           <Outlet />
         </main>
         <footer style={footerStyle(darkMode)}>
           {user && !user.banned && (
             <Link
               to="/upload"
-              title="Adaugă o notiță nouă"
-              aria-label="Adaugă o notiță nouă"
+              title={t('nav.addNote')}
+              aria-label={t('nav.addNote')}
               style={{ ...toggleStyle, textDecoration: 'none' }}
             >
               {/* SVG cu cele două linii — perfect centrat geometric. „+" ca text
@@ -212,8 +234,8 @@ export default function Layout() {
           {user && (
             <button
               onClick={() => setLeaderboardHidden(!leaderboardHidden)}
-              title={leaderboardHidden ? 'Afișează leaderboardul' : 'Ascunde leaderboardul'}
-              aria-label={leaderboardHidden ? 'Afișează leaderboardul' : 'Ascunde leaderboardul'}
+              title={leaderboardHidden ? t('nav.showLeaderboard') : t('nav.hideLeaderboard')}
+              aria-label={leaderboardHidden ? t('nav.showLeaderboard') : t('nav.hideLeaderboard')}
               aria-pressed={leaderboardHidden}
               style={leaderboardHidden
                 ? { ...themeToggleStyle, border: '1px solid rgba(220, 38, 38, 0.55)', background: 'rgba(220, 38, 38, 0.25)', color: '#fca5a5' }
@@ -231,44 +253,42 @@ export default function Layout() {
 }
 
 function SiteDetails({ darkMode }) {
+  const { t } = useTranslation();
   return (
     <section style={siteDetailsStyle(darkMode)}>
       <div style={siteDetailsInner}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24, marginBottom: 24 }}>
           <div>
-            <h3 style={detailsTitleStyle}>📚 Notițe</h3>
-            <p style={detailsTextStyle(darkMode)}>
-              Platformă de notițe colaborative pentru elevi de gimnaziu și liceu.
-              Publică, evaluează, salvează și învață împreună.
-            </p>
+            <h3 style={detailsTitleStyle}>📚 {t('common.appName')}</h3>
+            <p style={detailsTextStyle(darkMode)}>{t('footerInfo.tagline')}</p>
           </div>
           <div>
-            <h3 style={detailsTitleStyle}>Funcții</h3>
+            <h3 style={detailsTitleStyle}>{t('footerInfo.features')}</h3>
             <ul style={detailsListStyle(darkMode)}>
-              <li>Quiz și flashcards generate AI</li>
-              <li>Chat AI personal pe fiecare notiță</li>
-              <li>Căutare semantică prin embeddings</li>
-              <li>Validare de la profesori verificați</li>
+              <li>{t('footerInfo.feature1')}</li>
+              <li>{t('footerInfo.feature2')}</li>
+              <li>{t('footerInfo.feature3')}</li>
+              <li>{t('footerInfo.feature4')}</li>
             </ul>
           </div>
           <div>
-            <h3 style={detailsTitleStyle}>Comunitate</h3>
+            <h3 style={detailsTitleStyle}>{t('footerInfo.community')}</h3>
             <ul style={detailsListStyle(darkMode)}>
-              <li><Link to="/users" style={detailsLinkStyle(darkMode)}>Toți utilizatorii</Link></li>
-              <li><Link to="/trending" style={detailsLinkStyle(darkMode)}>În tendințe</Link></li>
-              <li><Link to="/requests" style={detailsLinkStyle(darkMode)}>Cereri de notițe</Link></li>
+              <li><Link to="/users" style={detailsLinkStyle(darkMode)}>{t('menu.users')}</Link></li>
+              <li><Link to="/trending" style={detailsLinkStyle(darkMode)}>{t('menu.trending')}</Link></li>
+              <li><Link to="/requests" style={detailsLinkStyle(darkMode)}>{t('menu.requests')}</Link></li>
             </ul>
           </div>
           <div>
-            <h3 style={detailsTitleStyle}>Reguli</h3>
+            <h3 style={detailsTitleStyle}>{t('footerInfo.rules')}</h3>
             <ul style={detailsListStyle(darkMode)}>
-              <li><Link to="/rules" style={detailsLinkStyle(darkMode)}>Regulament</Link></li>
-              <li><Link to="/appeals/public" style={detailsLinkStyle(darkMode)}>Apeluri publice</Link></li>
+              <li><Link to="/rules" style={detailsLinkStyle(darkMode)}>{t('footerInfo.regulation')}</Link></li>
+              <li><Link to="/appeals/public" style={detailsLinkStyle(darkMode)}>{t('footerInfo.publicAppeals')}</Link></li>
             </ul>
           </div>
         </div>
         <div style={{ borderTop: darkMode ? '1px solid rgba(168, 85, 247, 0.2)' : '1px solid rgba(244, 114, 182, 0.25)', paddingTop: 12, fontSize: 12, color: darkMode ? '#a89bc4' : '#9ca3af', textAlign: 'center' }}>
-          {new Date().getFullYear()} Notițe • Proiect educațional
+          {new Date().getFullYear()} {t('common.appName')} • {t('common.footer')}
         </div>
       </div>
     </section>

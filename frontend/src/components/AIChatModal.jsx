@@ -1,12 +1,14 @@
 // Modal chat cu AI — conversația e persistată per utilizator + per notiță,
 // deci AI-ul "ține minte" discuția la redeschidere.
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { X, Send, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.js';
 
 export function AIChatModal({ noteId, noteTitle, isOpen, onClose }) {
   const { darkMode } = useAuth();
+  const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +21,7 @@ export function AIChatModal({ noteId, noteTitle, isOpen, onClose }) {
   // Mesaj de întâmpinare — doar UI, nu se persistă în DB.
   const welcomeMsg = () => ({
     role: 'assistant',
-    content: `Bună! Sunt asistentul tău AI pentru notița "${noteTitle}". Poți să mă întrebi orice despre conținut — să-ți explic un concept, să rezum o parte sau să răspund la întrebări. Conversația se salvează, deci putem continua și data viitoare.`,
+    content: `${t('ai.chatTitle')} — "${noteTitle}"`,
   });
 
   // La deschidere: încarcă istoricul salvat din DB.
@@ -62,7 +64,7 @@ export function AIChatModal({ noteId, noteTitle, isOpen, onClose }) {
       const { data } = await api.post(`/notes/${noteId}/chat`, { message: text });
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
     } catch (err) {
-      const msg = err.response?.data?.error || 'Eroare la conectarea cu AI. Încearcă din nou.';
+      const msg = err.response?.data?.error || t('common.sendError');
       setError(msg);
       setMessages(prev => prev.slice(0, -1));
       setInput(text);
@@ -73,14 +75,14 @@ export function AIChatModal({ noteId, noteTitle, isOpen, onClose }) {
 
   const handleClearConversation = async () => {
     if (clearing) return;
-    if (!window.confirm('Ștergi toată conversația cu AI pentru această notiță?')) return;
+    if (!window.confirm(t('common.confirm') + '?')) return;
     setClearing(true);
     setError(null);
     try {
       await api.delete(`/notes/${noteId}/chat`);
       setMessages([welcomeMsg()]);
     } catch (err) {
-      setError('Nu am putut șterge conversația.');
+      setError(t('common.deleteError'));
     } finally {
       setClearing(false);
     }
@@ -106,32 +108,28 @@ export function AIChatModal({ noteId, noteTitle, isOpen, onClose }) {
         {/* Header */}
         <div style={headerStyle(darkMode)}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 16 }}>Asistent AI</div>
-            <div style={{ fontSize: 12, color: darkMode ? '#a89bc4' : '#888', marginTop: 2 }}>
-              Conversația se salvează automat
-            </div>
+            <div style={{ fontWeight: 600, fontSize: 16 }}>{t('ai.chatTitle')}</div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={handleClearConversation}
               style={closeBtnStyle(darkMode)}
-              title="Șterge conversația"
+              aria-label={t('common.delete')}
               disabled={clearing}
             >
               <Trash2 size={16} />
             </button>
-            <button onClick={handleClose} style={closeBtnStyle(darkMode)} title="Închide">
+            <button onClick={handleClose} style={closeBtnStyle(darkMode)} aria-label={t('common.close')}>
               <X size={18} />
             </button>
           </div>
         </div>
 
-        {/* Mesaje */}
         <div style={messageListStyle}>
           {historyLoading && (
             <div style={{ ...aiBubbleWrap }}>
               <div style={{ ...aiBubble(darkMode), color: darkMode ? '#a89bc4' : '#999', fontStyle: 'italic' }}>
-                Se încarcă conversația...
+                {t('common.loading')}
               </div>
             </div>
           )}
@@ -146,7 +144,7 @@ export function AIChatModal({ noteId, noteTitle, isOpen, onClose }) {
           {loading && (
             <div style={aiBubbleWrap}>
               <div style={{ ...aiBubble(darkMode), color: darkMode ? '#a89bc4' : '#999', fontStyle: 'italic' }}>
-                Se gândește...
+                {t('common.loading')}...
               </div>
             </div>
           )}
@@ -167,10 +165,11 @@ export function AIChatModal({ noteId, noteTitle, isOpen, onClose }) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Scrie o întrebare... (Enter pentru trimite, Shift+Enter pentru linie nouă)"
+            placeholder={t('ai.chatPlaceholder')}
             disabled={loading}
             rows={2}
             style={inputAreaStyle(darkMode)}
+            aria-label={t('ai.chatPlaceholder')}
           />
           <button
             type="submit"
@@ -179,7 +178,7 @@ export function AIChatModal({ noteId, noteTitle, isOpen, onClose }) {
               ...sendBtnStyle(darkMode),
               opacity: loading || !input.trim() ? 0.5 : 1,
             }}
-            title="Trimite"
+            aria-label={t('common.send')}
           >
             <Send size={18} />
           </button>

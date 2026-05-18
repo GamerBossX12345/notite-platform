@@ -1,11 +1,14 @@
 // Componenta Comments cu Threading
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { UserNameWithBadges } from './Badges.jsx';
 
 export function CommentsSection({ noteId, initialComments = [], noteAuthorId = null }) {
   const { user, darkMode } = useAuth();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('en') ? 'en-US' : 'ro-RO';
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'HEAD_ADMIN';
   const [comments, setComments] = useState(initialComments);
   const [newComment, setNewComment] = useState('');
@@ -34,8 +37,7 @@ export function CommentsSection({ noteId, initialComments = [], noteAuthorId = n
         setNewComment('');
       }
     } catch (err) {
-      console.error('Error posting comment:', err);
-      alert('Eroare: ' + (err.response?.data?.error || err.message));
+      alert(t('common.sendError') + ': ' + (err.response?.data?.error || err.message));
     } finally {
       setLoading(false);
     }
@@ -47,7 +49,7 @@ export function CommentsSection({ noteId, initialComments = [], noteAuthorId = n
   };
 
   const handleDelete = async (commentId) => {
-    if (!confirm('Ștergi comentariul?')) return;
+    if (!confirm(t('common.confirm') + '?')) return;
 
     try {
       await api.delete(`/notes/${noteId}/comments/${commentId}`);
@@ -61,20 +63,19 @@ export function CommentsSection({ noteId, initialComments = [], noteAuthorId = n
           .filter(Boolean)
       );
     } catch (err) {
-      alert('Eroare: ' + (err.response?.data?.error || err.message));
+      alert(t('common.deleteError') + ': ' + (err.response?.data?.error || err.message));
     }
   };
 
   return (
     <div style={{ marginTop: '32px' }}>
-      <h3>💬 Comentarii ({comments.length})</h3>
+      <h3>💬 {t('note.comments')} ({comments.length})</h3>
 
-      {/* Form comentariu nou */}
       <form onSubmit={handleSubmit} style={{ marginBottom: '24px' }}>
         <textarea
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
-          placeholder="Scrie un comentariu..."
+          placeholder={t('note.commentPlaceholder')}
           style={textareaStyle(darkMode, 80)}
         />
         <button
@@ -82,19 +83,21 @@ export function CommentsSection({ noteId, initialComments = [], noteAuthorId = n
           disabled={loading || !newComment.trim()}
           style={{ ...primaryBtnStyle(darkMode), marginTop: 8, opacity: loading || !newComment.trim() ? 0.5 : 1 }}
         >
-          {loading ? 'Se trimite...' : 'Postează'}
+          {loading ? t('common.loading') : t('common.send')}
         </button>
       </form>
 
       <div>
         {comments.length === 0 ? (
-          <p style={{ color: darkMode ? '#a89bc4' : '#999' }}>Niciun comentariu. Fii prima persoană!</p>
+          <p style={{ color: darkMode ? '#a89bc4' : '#999' }}>{t('note.noComments')}</p>
         ) : (
           comments.map((comment) => (
             <CommentItem
               key={comment.id}
               comment={comment}
               darkMode={darkMode}
+              locale={locale}
+              t={t}
               noteAuthorId={noteAuthorId}
               currentUserId={user?.id}
               isAdmin={isAdmin}
@@ -111,7 +114,7 @@ export function CommentsSection({ noteId, initialComments = [], noteAuthorId = n
   );
 }
 
-function CommentItem({ comment, darkMode, noteAuthorId, currentUserId, isAdmin, onReply, onDelete, isReplying, onSubmitReply, loading }) {
+function CommentItem({ comment, darkMode, locale, t, noteAuthorId, currentUserId, isAdmin, onReply, onDelete, isReplying, onSubmitReply, loading }) {
   const canDelete = currentUserId && (comment.user?.id === currentUserId || isAdmin);
   const [replyText, setReplyText] = useState('');
 
@@ -134,11 +137,11 @@ function CommentItem({ comment, darkMode, noteAuthorId, currentUserId, isAdmin, 
               />
             </strong>
             <span style={{ color: darkMode ? '#a89bc4' : '#999', fontSize: 12, marginLeft: 8 }}>
-              {new Date(comment.createdAt).toLocaleDateString('ro')}
+              {new Date(comment.createdAt).toLocaleDateString(locale)}
             </span>
           </div>
           {canDelete && (
-            <button onClick={onDelete} style={deleteBtnStyle(darkMode)} title="Șterge">
+            <button onClick={onDelete} style={deleteBtnStyle(darkMode)} aria-label={t('common.delete')}>
               ✕
             </button>
           )}
@@ -147,17 +150,16 @@ function CommentItem({ comment, darkMode, noteAuthorId, currentUserId, isAdmin, 
           {comment.content}
         </p>
         <button onClick={onReply} style={replyToggleStyle(darkMode)}>
-          {isReplying ? 'Anulează' : 'Răspunde'}
+          {isReplying ? t('common.cancel') : t('note.reply')}
         </button>
       </div>
 
-      {/* Reply form */}
       {isReplying && (
         <form onSubmit={handleReplySubmit} style={{ marginTop: 8, marginLeft: 16 }}>
           <textarea
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
-            placeholder="Scrie un răspuns..."
+            placeholder={t('note.replyPlaceholder')}
             style={textareaStyle(darkMode, 60)}
           />
           <button
@@ -169,12 +171,11 @@ function CommentItem({ comment, darkMode, noteAuthorId, currentUserId, isAdmin, 
               opacity: loading || !replyText.trim() ? 0.5 : 1,
             }}
           >
-            {loading ? '...' : 'Postează răspuns'}
+            {loading ? '...' : t('common.send')}
           </button>
         </form>
       )}
 
-      {/* Replies */}
       {comment.replies && comment.replies.length > 0 && (
         <div style={repliesContainerStyle(darkMode)}>
           {comment.replies.map((reply) => (
@@ -187,7 +188,7 @@ function CommentItem({ comment, darkMode, noteAuthorId, currentUserId, isAdmin, 
               </strong>
               <span style={{ color: darkMode ? '#d8cfee' : '#333' }}> – {reply.content}</span>
               <span style={{ color: darkMode ? '#a89bc4' : '#999', fontSize: 11, marginLeft: 8 }}>
-                {new Date(reply.createdAt).toLocaleDateString('ro')}
+                {new Date(reply.createdAt).toLocaleDateString(locale)}
               </span>
             </div>
           ))}

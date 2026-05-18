@@ -1,32 +1,33 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
-const STATUS_LABEL = {
-  PENDING:  { label: '⏳ În așteptare', color: '#f59e0b' },
-  OPEN:     { label: '👀 În analiză', color: '#3b82f6' },
-  RESOLVED: { label: '✅ Soluționat',   color: '#10b981' },
-};
-
-const RESOLUTION_LABEL = {
-  UPHELD:     { label: 'Ban menținut',  color: '#dc2626' },
-  OVERTURNED: { label: 'Ban ridicat',   color: '#10b981' },
-};
-
 export default function BannedPage() {
   const { user, darkMode, logout, refreshMe } = useAuth();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language?.startsWith('en') ? 'en-US' : 'ro-RO';
   const [message, setMessage] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  if (!user) return <p>Se încarcă...</p>;
+  const STATUS_LABEL = {
+    PENDING:  { label: '⏳ ' + t('banned.statusPending'), color: '#f59e0b' },
+    OPEN:     { label: '👀 ' + t('banned.statusOpen'),    color: '#3b82f6' },
+    RESOLVED: { label: '✅ ' + t('banned.statusResolved'), color: '#10b981' },
+  };
+  const RESOLUTION_LABEL = {
+    UPHELD:     { label: t('appeals.resolutionUpheld'),     color: '#dc2626' },
+    OVERTURNED: { label: t('appeals.resolutionOverturned'), color: '#10b981' },
+  };
+
+  if (!user) return <p>{t('common.loading')}</p>;
   if (!user.banned || !user.banInfo) {
     return (
       <div style={{ maxWidth: 500, margin: '64px auto', padding: 24 }}>
-        <h1>Contul tău nu este banat</h1>
-        <p>Această pagină e doar pentru conturile banate.</p>
+        <h1>{t('banned.title')}</h1>
       </div>
     );
   }
@@ -44,7 +45,7 @@ export default function BannedPage() {
       setMessage('');
       if (refreshMe) await refreshMe();
     } catch (err) {
-      setError(err.response?.data?.error || 'Nu am putut trimite apelul.');
+      setError(err.response?.data?.error || t('common.sendError'));
     } finally {
       setSubmitting(false);
     }
@@ -54,30 +55,30 @@ export default function BannedPage() {
     <div style={{ maxWidth: 720, margin: '40px auto', padding: 24 }}>
       <div style={banCardStyle(darkMode)}>
         <div style={{ fontSize: 48, textAlign: 'center', marginBottom: 12 }}>🚫</div>
-        <h1 style={{ margin: '0 0 8px', textAlign: 'center' }}>Cont banat</h1>
+        <h1 style={{ margin: '0 0 8px', textAlign: 'center' }}>{t('banned.title')}</h1>
         <p style={{ textAlign: 'center', color: darkMode ? '#d4b8ff' : '#6b21a8', margin: 0 }}>
-          Salut <strong>{user.username}</strong>. Contul tău a fost banat de un admin.
+          <strong>{user.username}</strong>
         </p>
 
         <hr style={hrStyle(darkMode)} />
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-          <Stat label="Banat la" value={new Date(info.bannedAt).toLocaleString('ro-RO')} darkMode={darkMode} />
+          <Stat label={t('banned.bannedAt')} value={new Date(info.bannedAt).toLocaleString(locale)} darkMode={darkMode} />
           <Stat
-            label={`Șters automat la (${info.autoDeleteDays} zile)`}
-            value={new Date(info.autoDeleteAt).toLocaleString('ro-RO')}
+            label={t('banned.willBeDeleted')}
+            value={new Date(info.autoDeleteAt).toLocaleString(locale)}
             darkMode={darkMode}
           />
         </div>
 
         {info.banReason && (
-          <Block label="Motiv" darkMode={darkMode}>
+          <Block label={t('banned.reason')} darkMode={darkMode}>
             <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{info.banReason}</p>
           </Block>
         )}
 
         {info.banNote && (
-          <Block label="Notița care a dus la ban" darkMode={darkMode}>
+          <Block label={t('note.title')} darkMode={darkMode}>
             <p style={{ margin: 0 }}>
               <strong>{info.banNote.title}</strong> — {info.banNote.subject}
             </p>
@@ -85,27 +86,22 @@ export default function BannedPage() {
         )}
 
         {info.banComment && (
-          <Block label="Comentariul care a dus la ban" darkMode={darkMode}>
+          <Block label={t('note.comments')} darkMode={darkMode}>
             <p style={{ margin: 0, whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>
               „{info.banComment.content}"
             </p>
-            {info.banComment.note && (
-              <p style={{ margin: '6px 0 0', fontSize: 12, color: darkMode ? '#9ca3af' : '#6b7280' }}>
-                pe notița: {info.banComment.note.title}
-              </p>
-            )}
           </Block>
         )}
 
         <hr style={hrStyle(darkMode)} />
 
-        <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>Apel</h2>
+        <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>{t('banned.appealForm')}</h2>
         {appeal ? (
           <div style={appealBoxStyle(darkMode)}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', marginBottom: 8 }}>
               <span style={{ ...badgeStyle, background: statusBadge.color }}>{statusBadge.label}</span>
               <span style={{ fontSize: 12, color: darkMode ? '#9ca3af' : '#6b7280' }}>
-                Depus la {new Date(appeal.createdAt).toLocaleString('ro-RO')}
+                {new Date(appeal.createdAt).toLocaleString(locale)}
               </span>
             </div>
             <p style={{ margin: '0 0 8px', whiteSpace: 'pre-wrap' }}>{appeal.message}</p>
@@ -113,7 +109,7 @@ export default function BannedPage() {
             {appeal.status === 'RESOLVED' && (
               <div style={{ marginTop: 12, padding: 10, borderRadius: 6, background: darkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }}>
                 <p style={{ margin: '0 0 6px' }}>
-                  <strong>Verdict:</strong>{' '}
+                  <strong>{t('appeals.resolution')}:</strong>{' '}
                   <span style={{ color: RESOLUTION_LABEL[appeal.resolution]?.color }}>
                     {RESOLUTION_LABEL[appeal.resolution]?.label || appeal.resolution}
                   </span>
@@ -125,22 +121,16 @@ export default function BannedPage() {
                 )}
               </div>
             )}
-            {appeal.status !== 'RESOLVED' && (
-              <p style={{ margin: '8px 0 0', fontSize: 13, color: darkMode ? '#a89bc4' : '#6b7280' }}>
-                ⓘ Cât timp acest apel e activ, contul tău NU va fi șters automat.
-              </p>
-            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
             <p style={{ fontSize: 14, marginBottom: 8, color: darkMode ? '#c4b5fd' : '#4b5563' }}>
-              Dacă crezi că ban-ul a fost o greșeală, depune un apel.
-              Cât timp apelul e activ, contul tău <strong>nu va fi șters</strong>.
+              {t('banned.messageLabel')}
             </p>
             <textarea
               value={message}
               onChange={e => setMessage(e.target.value)}
-              placeholder="Explică de ce ar trebui ridicat ban-ul (minim 20 caractere)..."
+              placeholder={t('banned.messageLabel')}
               rows={6}
               required
               minLength={20}
@@ -155,9 +145,7 @@ export default function BannedPage() {
                 style={{ marginTop: 3, accentColor: '#a855f7' }}
               />
               <span style={{ fontSize: 13, color: darkMode ? '#c4b5fd' : '#4b5563' }}>
-                <strong>Fă apelul public</strong> după ce e rezolvat. Va apărea anonimizat
-                (primele litere ale username-ului) la <Link to="/appeals/public" style={{ color: '#a855f7' }}>/appeals/public</Link>,
-                pentru transparență comunității.
+                <strong>{t('banned.makePublic')}</strong> — <Link to="/appeals/public" style={{ color: '#a855f7' }}>/appeals/public</Link>
               </span>
             </label>
 
@@ -167,7 +155,7 @@ export default function BannedPage() {
               </span>
               {error && <span style={{ color: '#dc2626', fontSize: 13 }}>{error}</span>}
               <button type="submit" disabled={submitting || message.trim().length < 20} style={submitBtnStyle}>
-                {submitting ? 'Se trimite...' : 'Depune apel'}
+                {submitting ? t('banned.submitting') : t('banned.submitAppeal')}
               </button>
             </div>
           </form>
@@ -177,7 +165,7 @@ export default function BannedPage() {
 
         <div style={{ textAlign: 'center' }}>
           <button onClick={logout} style={logoutBtnStyle(darkMode)}>
-            Deconectare
+            {t('nav.logout')}
           </button>
         </div>
       </div>

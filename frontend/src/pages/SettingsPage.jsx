@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth.js';
 import { api } from '../api/client.js';
 
@@ -13,6 +14,7 @@ const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
 export default function SettingsPage() {
   const { user, loading, logout, darkMode } = useAuth();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const [tab, setTab] = useState('profile');
 
@@ -197,190 +199,145 @@ export default function SettingsPage() {
 
   return (
     <div style={{ maxWidth: 900 }}>
-      <h1 style={{ fontSize: 28, marginBottom: 24 }}>Setări cont</h1>
+      <h1 style={{ fontSize: 28, marginBottom: 24 }}>{t('settings.title')}</h1>
 
       <div className="responsive-settings-layout" style={layoutStyle}>
         <nav className="responsive-settings-tabs" style={tabsStyle(darkMode)}>
-          <TabBtn active={tab === 'profile'}      onClick={() => setTab('profile')}      label="Profil" />
-          <TabBtn active={tab === 'privacy'}      onClick={() => setTab('privacy')}      label="Confidențialitate" />
-          <TabBtn active={tab === 'notifications'} onClick={() => setTab('notifications')} label="Notificări"         />
-          <TabBtn active={tab === 'homepage'}     onClick={() => setTab('homepage')}     label="Homepage"          />
-          <TabBtn active={tab === 'teacher'}      onClick={() => setTab('teacher')}      label="Profesor"          />
-          <TabBtn active={tab === 'password'}     onClick={() => setTab('password')}     label="Parolă" />
-          <TabBtn active={tab === 'danger'}       onClick={() => setTab('danger')}       label="Pericol" danger />
+          <TabBtn active={tab === 'profile'}       onClick={() => setTab('profile')}       label={t('settings.tabAccount')} />
+          <TabBtn active={tab === 'privacy'}       onClick={() => setTab('privacy')}       label={t('settings.tabPrivacy')} />
+          <TabBtn active={tab === 'notifications'} onClick={() => setTab('notifications')} label={t('settings.tabNotifications')} />
+          <TabBtn active={tab === 'homepage'}      onClick={() => setTab('homepage')}      label={t('settings.tabDefaults')} />
+          <TabBtn active={tab === 'teacher'}       onClick={() => setTab('teacher')}       label={t('settings.tabTeacher')} />
+          <TabBtn active={tab === 'password'}      onClick={() => setTab('password')}      label={t('common.password')} />
+          <TabBtn active={tab === 'danger'}        onClick={() => setTab('danger')}        label={t('settings.tabDanger')} danger />
         </nav>
         <div style={{ flex: 1, minWidth: 0 }}>
 
-      {/* PROFIL */}
       {tab === 'profile' && (
         <div style={sectionStyle(darkMode)}>
-          <h2 style={sectionTitleStyle(darkMode)}>Date profil</h2>
-          <p style={mutedStyle(darkMode)}>Actualizează informațiile tale personale.</p>
+          <h2 style={sectionTitleStyle(darkMode)}>{t('settings.tabAccount')}</h2>
 
-          <Field label="Nume"   name="name"     value={formData.name}     onChange={handleInputChange} placeholder="Ex: Ion Popescu" />
-          <Field label="Email"  name="email"    value={formData.email}    onChange={handleInputChange} type="email" placeholder="Ex: ion@example.com" />
-          <Field label="Username" name="username" value={formData.username} onChange={handleInputChange} placeholder="Ex: ionpop" />
-          <Field label="Școală" name="school"   value={formData.school}   onChange={handleInputChange} placeholder="Ex: Colegiul Național X" />
-          <Field label="Clasa"  name="grade"    value={formData.grade}    onChange={handleInputChange} type="number" min="5" max="12" />
+          <Field label={t('settings.name')}     name="name"     value={formData.name}     onChange={handleInputChange} />
+          <Field label={t('common.email')}      name="email"    value={formData.email}    onChange={handleInputChange} type="email" />
+          <Field label={t('common.username')}   name="username" value={formData.username} onChange={handleInputChange} />
+          <Field label={t('settings.school')}   name="school"   value={formData.school}   onChange={handleInputChange} />
+          <Field label={t('settings.grade')}    name="grade"    value={formData.grade}    onChange={handleInputChange} type="number" min="5" max="12" />
 
           <div style={formGroupStyle}>
-            <label style={labelStyle(darkMode)}>Bio</label>
+            <label style={labelStyle(darkMode)}>{t('settings.bio')}</label>
             <textarea
               name="bio" value={formData.bio} onChange={handleInputChange}
               style={{ ...inputStyle(darkMode), minHeight: 80, resize: 'vertical' }}
-              placeholder="Câteva cuvinte despre tine..."
             />
           </div>
 
           {sensitiveChanged && (
             <div style={warnBoxStyle}>
               <label style={{ ...labelStyle(darkMode), color: '#fbbf24' }}>
-                ⚠ Ai modificat emailul sau username-ul. Confirmă cu parola ta:
+                ⚠ {t('common.password')}:
               </label>
               <input
                 type="password" value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setConfirmError(''); }}
-                style={inputStyle(darkMode)} placeholder="Parola ta"
+                style={inputStyle(darkMode)}
               />
             </div>
           )}
 
           {confirmError && <p style={errorStyle}>❌ {confirmError}</p>}
 
-          <SaveBtn onClick={handleSaveProfile} saving={saving} saved={saved === 'profile'} label="Salvează profil" />
+          <SaveBtn onClick={handleSaveProfile} saving={saving} saved={saved === 'profile'} label={t('settings.saveProfile')} />
         </div>
       )}
 
-      {/* CONFIDENȚIALITATE */}
       {tab === 'privacy' && (
         <div style={sectionStyle(darkMode)}>
-          <h2 style={sectionTitleStyle(darkMode)}>Confidențialitate profil</h2>
-          <p style={mutedStyle(darkMode)}>Alege ce informații sunt vizibile public pe pagina ta de profil.</p>
+          <h2 style={sectionTitleStyle(darkMode)}>{t('settings.tabPrivacy')}</h2>
 
-          <Toggle
-            checked={showName} onChange={setShowName}
-            title="Afișează numele real"
-            desc={formData.name ? `Pe profil va apărea "${formData.name}" în loc de "@${formData.username}"` : 'Nu ai un nume setat — va apărea username-ul'}
-          />
-          <Toggle
-            checked={showSchool} onChange={setShowSchool}
-            title="Afișează școala"
-            desc={formData.school ? `Vizibil: "${formData.school}"` : 'Nu ai școala setată'}
-          />
-          <Toggle
-            checked={showGrade} onChange={setShowGrade}
-            title="Afișează clasa"
-            desc={formData.grade ? `Vizibil: clasa a ${formData.grade}-a` : 'Nu ai clasa setată'}
-          />
+          <Toggle checked={showName}   onChange={setShowName}   title={t('settings.showName')} />
+          <Toggle checked={showSchool} onChange={setShowSchool} title={t('settings.showSchool')} />
+          <Toggle checked={showGrade}  onChange={setShowGrade}  title={t('settings.showGrade')} />
 
-          <SaveBtn onClick={handleSavePrivacy} saving={saving} saved={saved === 'privacy'} label="Salvează" />
+          <SaveBtn onClick={handleSavePrivacy} saving={saving} saved={saved === 'privacy'} label={t('common.save')} />
         </div>
       )}
 
-      {/* NOTIFICĂRI */}
       {tab === 'notifications' && (
         <div style={sectionStyle(darkMode)}>
-          <h2 style={sectionTitleStyle(darkMode)}>Notificări</h2>
-          <p style={mutedStyle(darkMode)}>Alege pentru ce evenimente vrei să primești notificări.</p>
+          <h2 style={sectionTitleStyle(darkMode)}>{t('settings.tabNotifications')}</h2>
 
-          <Toggle
-            checked={notifyOnRating} onChange={setNotifyOnRating}
-            title="Rating-uri noi"
-            desc="Când cineva votează una dintre notițele tale"
-          />
-          <Toggle
-            checked={notifyOnComment} onChange={setNotifyOnComment}
-            title="Comentarii noi"
-            desc="Când cineva comentează la una dintre notițele tale"
-          />
-          <Toggle
-            checked={notifyOnReport} onChange={setNotifyOnReport}
-            title="Raportări"
-            desc="Când o notiță de-a ta este raportată sau ascunsă"
-          />
+          <Toggle checked={notifyOnRating}  onChange={setNotifyOnRating}  title={t('settings.notifyRating')} />
+          <Toggle checked={notifyOnComment} onChange={setNotifyOnComment} title={t('settings.notifyComment')} />
+          <Toggle checked={notifyOnReport}  onChange={setNotifyOnReport}  title={t('settings.notifyReport')} />
 
-          <SaveBtn onClick={handleSaveNotifications} saving={saving} saved={saved === 'notifications'} label="Salvează" />
+          <SaveBtn onClick={handleSaveNotifications} saving={saving} saved={saved === 'notifications'} label={t('common.save')} />
         </div>
       )}
 
-      {/* HOMEPAGE */}
       {tab === 'homepage' && (
         <div style={sectionStyle(darkMode)}>
-          <h2 style={sectionTitleStyle(darkMode)}>Preferințe homepage</h2>
-          <p style={mutedStyle(darkMode)}>
-            Setează filtre implicite pentru pagina principală — vor fi aplicate automat când intri în site.
-          </p>
+          <h2 style={sectionTitleStyle(darkMode)}>{t('settings.tabDefaults')}</h2>
 
           <div style={formGroupStyle}>
-            <label style={labelStyle(darkMode)}>Materie implicită</label>
+            <label style={labelStyle(darkMode)}>{t('settings.defaultSubject')}</label>
             <select value={defaultSubject} onChange={e => setDefaultSubject(e.target.value)} style={inputStyle(darkMode)}>
-              <option value="">— Toate materiile —</option>
+              <option value="">— {t('home.allSubjects')} —</option>
               {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
 
           <div style={formGroupStyle}>
-            <label style={labelStyle(darkMode)}>Clasă implicită</label>
+            <label style={labelStyle(darkMode)}>{t('settings.defaultGrade')}</label>
             <select value={defaultGradeLevel} onChange={e => setDefaultGradeLevel(e.target.value)} style={inputStyle(darkMode)}>
-              <option value="">— Toate clasele —</option>
-              {GRADE_LEVELS.map(g => <option key={g} value={g}>a {g}-a</option>)}
+              <option value="">— {t('home.allGrades')} —</option>
+              {GRADE_LEVELS.map(g => <option key={g} value={g}>{g}</option>)}
             </select>
-            {user.grade && (
-              <small style={{ display: 'block', marginTop: 6, fontSize: 12, color: darkMode ? '#999' : '#666' }}>
-                Implicit: clasa de la înregistrare (a {user.grade}-a). Selectează "Toate clasele" dacă vrei să vezi tot.
-              </small>
-            )}
           </div>
 
-          <SaveBtn onClick={handleSaveHomepage} saving={saving} saved={saved === 'homepage'} label="Salvează" />
+          <SaveBtn onClick={handleSaveHomepage} saving={saving} saved={saved === 'homepage'} label={t('common.save')} />
         </div>
       )}
 
-      {/* PROFESOR */}
       {tab === 'teacher' && (
         <TeacherTab darkMode={darkMode} user={user} />
       )}
 
-
-      {/* PAROLĂ */}
       {tab === 'password' && (
         <div style={sectionStyle(darkMode)}>
-          <h2 style={sectionTitleStyle(darkMode)}>Schimbare parolă</h2>
-          <p style={mutedStyle(darkMode)}>Alege o parolă nouă (minim 8 caractere).</p>
+          <h2 style={sectionTitleStyle(darkMode)}>{t('common.password')}</h2>
 
           <div style={formGroupStyle}>
-            <label style={labelStyle(darkMode)}>Parola actuală</label>
+            <label style={labelStyle(darkMode)}>{t('common.password')}</label>
             <input type="password" value={currentPassword} onChange={e => { setCurrentPassword(e.target.value); setPasswordError(''); }} style={inputStyle(darkMode)} />
           </div>
           <div style={formGroupStyle}>
-            <label style={labelStyle(darkMode)}>Parola nouă</label>
+            <label style={labelStyle(darkMode)}>{t('common.password')}</label>
             <input type="password" value={newPassword} onChange={e => { setNewPassword(e.target.value); setPasswordError(''); }} style={inputStyle(darkMode)} />
           </div>
           <div style={formGroupStyle}>
-            <label style={labelStyle(darkMode)}>Confirmă parola nouă</label>
+            <label style={labelStyle(darkMode)}>{t('common.confirm')}</label>
             <input type="password" value={confirmNewPassword} onChange={e => { setConfirmNewPassword(e.target.value); setPasswordError(''); }} style={inputStyle(darkMode)} />
           </div>
 
           {passwordError && <p style={errorStyle}>❌ {passwordError}</p>}
 
-          <SaveBtn onClick={handleChangePassword} saving={saving} saved={saved === 'password'} label="Schimbă parola" />
+          <SaveBtn onClick={handleChangePassword} saving={saving} saved={saved === 'password'} label={t('common.save')} />
         </div>
       )}
 
-      {/* PERICOL */}
       {tab === 'danger' && (
         <div style={dangerSectionStyle(darkMode)}>
-          <h2 style={dangerTitleStyle(darkMode)}>Ștergere cont</h2>
+          <h2 style={dangerTitleStyle(darkMode)}>{t('settings.deleteAccount')}</h2>
           <p style={dangerWarnStyle(darkMode)}>
-            <strong>Atenție!</strong> Ștergerea contului este permanentă. Toate notițele, comentariile și datele vor fi șterse.
+            <strong>{t('settings.deleteAccountConfirm')}</strong>
           </p>
 
           <div style={formGroupStyle}>
-            <label style={labelStyle(darkMode)}>Introduceți parola pentru confirmare:</label>
+            <label style={labelStyle(darkMode)}>{t('common.password')}</label>
             <input
               type="password" value={deletePassword}
               onChange={(e) => setDeletePassword(e.target.value)}
-              style={inputStyle(darkMode)} placeholder="Parola ta" disabled={deleting}
+              style={inputStyle(darkMode)} disabled={deleting}
             />
           </div>
 
@@ -390,7 +347,7 @@ export default function SettingsPage() {
             onClick={handleDeleteAccount} disabled={deleting}
             style={dangerBtnStyle(darkMode, deleting)}
           >
-            {deleting ? 'Se șterge...' : '🗑 Șterge permanent contul'}
+            {deleting ? t('common.loading') : '🗑 ' + t('settings.deleteAccount')}
           </button>
         </div>
       )}

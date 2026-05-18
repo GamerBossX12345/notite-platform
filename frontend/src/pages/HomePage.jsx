@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import Leaderboard from '../components/Leaderboard.jsx';
@@ -12,18 +13,18 @@ const SUBJECTS = [
   'Filosofie', 'Economie', 'Psihologie',
 ];
 
-const NOTE_TYPES = [
-  { value: 'REZUMAT', label: 'Rezumat' },
-  { value: 'EXERCITII', label: 'Exerciții' },
-  { value: 'FISA', label: 'Fișă' },
-  { value: 'HARTA_CONCEPTUALA', label: 'Hartă conceptuală' },
-  { value: 'FORMULE', label: 'Formule' },
-];
-
 const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
 
 export default function HomePage() {
   const { user, dismissWarning, sidebarOpen, setSidebarOpen, darkMode } = useAuth();
+  const { t } = useTranslation();
+  const NOTE_TYPES = [
+    { value: 'REZUMAT',           label: t('upload.noteTypeRezumat')   },
+    { value: 'EXERCITII',         label: t('upload.noteTypeExercitii') },
+    { value: 'FISA',              label: t('upload.noteTypeFisa')      },
+    { value: 'HARTA_CONCEPTUALA', label: t('upload.noteTypeHarta')     },
+    { value: 'FORMULE',           label: t('upload.noteTypeFormule')   },
+  ];
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput] = useState(searchParams.get('q') || '');
   const [result, setResult] = useState({ notes: [], total: 0, totalPages: 1 });
@@ -165,17 +166,17 @@ export default function HomePage() {
       {sidebarOpen && (
         <>
           <div onClick={() => setSidebarOpen(false)} style={sidebarOverlayStyle} />
-          <aside className="responsive-filter-sidebar" style={sidebarStyle(darkMode)} role="dialog" aria-modal="true" aria-label="Filtre notițe">
+          <aside className="responsive-filter-sidebar" style={sidebarStyle(darkMode)} role="dialog" aria-modal="true" aria-label={t('home.filtersTitle')}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <h3 style={{ margin: 0, fontSize: 16 }}>Filtre</h3>
-              <button onClick={() => setSidebarOpen(false)} style={sidebarCloseBtnStyle}>✕</button>
+              <h3 style={{ margin: 0, fontSize: 16 }}>{t('home.filtersTitle')}</h3>
+              <button onClick={() => setSidebarOpen(false)} style={sidebarCloseBtnStyle} aria-label={t('common.close')}>✕</button>
             </div>
 
-            <SidebarField label="Materie">
+            <SidebarField label={t('common.subject')}>
               <select value={subject} onChange={e => setParam('subject', e.target.value)} style={sidebarSelectStyle(darkMode)}>
-                <option value="">Toate materiile</option>
+                <option value="">{t('home.allSubjects')}</option>
                 {defaultSubject && (
-                  <option value={defaultSubject}>Default ({defaultSubject})</option>
+                  <option value={defaultSubject}>★ {defaultSubject}</option>
                 )}
                 {SUBJECTS.filter(s => s !== defaultSubject).map(s => (
                   <option key={s} value={s}>{s}</option>
@@ -183,44 +184,45 @@ export default function HomePage() {
               </select>
             </SidebarField>
 
-            <SidebarField label="Clasă">
+            <SidebarField label={t('common.grade')}>
               <select value={gradeLevel} onChange={e => setParam('gradeLevel', e.target.value)} style={sidebarSelectStyle(darkMode)}>
-                <option value="">Toate clasele</option>
+                <option value="">{t('home.allGrades')}</option>
                 {defaultGrade != null && (
-                  <option value={String(defaultGrade)}>Default (a {defaultGrade}-a)</option>
+                  <option value={String(defaultGrade)}>★ {defaultGrade}</option>
                 )}
                 {GRADE_LEVELS.filter(g => g !== defaultGrade).map(g => (
-                  <option key={g} value={g}>Clasa a {g}-a</option>
+                  <option key={g} value={g}>{g}</option>
                 ))}
               </select>
             </SidebarField>
 
-            <SidebarField label="Tip notiță">
+            <SidebarField label={t('common.type')}>
               <select value={type} onChange={e => setParam('type', e.target.value)} style={sidebarSelectStyle(darkMode)}>
-                <option value="">Toate tipurile</option>
-                {NOTE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                <option value="">{t('home.allTypes')}</option>
+                {NOTE_TYPES.map(nt => <option key={nt.value} value={nt.value}>{nt.label}</option>)}
               </select>
             </SidebarField>
 
-            <SidebarField label="Tag">
+            <SidebarField label={t('home.tagFilter')}>
               <TagFilter
                 value={searchParams.get('tag') || ''}
                 onChange={v => setParam('tag', v)}
                 darkMode={darkMode}
+                t={t}
               />
             </SidebarField>
 
-            <SidebarField label="Sortare">
+            <SidebarField label={t('home.sortBy')}>
               <select value={sort} onChange={e => setParam('sort', e.target.value)} style={sidebarSelectStyle(darkMode)}>
-                <option value="recent">Cele mai recente</option>
-                <option value="popular">Cele mai populare</option>
-                <option value="rating">Cel mai bine votate</option>
+                <option value="recent">{t('home.sortNewest')}</option>
+                <option value="popular">{t('home.sortPopular')}</option>
+                <option value="rating">{t('home.sortBest')}</option>
               </select>
             </SidebarField>
 
             {hasActiveFilters && (
               <button onClick={clearFilters} style={sidebarClearBtnStyle}>
-                Resetează filtrele
+                {t('home.resetFilters')}
               </button>
             )}
           </aside>
@@ -237,10 +239,9 @@ export default function HomePage() {
           <div style={{ background: '#fff3cd', border: '1px solid #ffc107', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
             <span style={{ fontSize: 20 }}>⚠️</span>
             <div style={{ flex: 1 }}>
-              <strong style={{ color: '#856404' }}>Avertisment de la administrație</strong>
               <p style={{ margin: '4px 0 0', color: '#856404', fontSize: 14 }}>{user.warning}</p>
             </div>
-            <button onClick={dismissWarning} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#856404', lineHeight: 1 }}>✕</button>
+            <button onClick={dismissWarning} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#856404', lineHeight: 1 }} aria-label={t('common.close')}>✕</button>
           </div>
         )}
 
@@ -249,9 +250,9 @@ export default function HomePage() {
           <div style={{ background: '#f8d7da', border: '1px solid #f5c6cb', borderRadius: 8, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 20 }}>🚫</span>
             <div>
-              <strong style={{ color: '#721c24' }}>Contul tău este suspendat temporar</strong>
+              <strong style={{ color: '#721c24' }}>{t('admin.suspend')}</strong>
               <p style={{ margin: '4px 0 0', color: '#721c24', fontSize: 14 }}>
-                Mai ai aproximativ <strong>{suspendedRemaining} {suspendedRemaining === 1 ? 'oră' : 'ore'}</strong> de suspendare.
+                ~ {suspendedRemaining}h
               </p>
             </div>
           </div>
@@ -261,14 +262,15 @@ export default function HomePage() {
         <div style={searchBarStyle}>
           <input
             type="search"
-            placeholder={semanticMode ? 'Caută semantic (ex: "legi ale termodinamicii")...' : 'Caută notițe...'}
+            placeholder={semanticMode ? t('home.semanticSearch') + '...' : t('home.searchPlaceholder')}
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
             style={{ ...selectStyle(darkMode), flex: 1, minWidth: 160 }}
+            aria-label={t('common.search')}
           />
           <button
             onClick={() => { setSemanticMode(m => !m); setSemanticResults([]); setSemanticError(null); }}
-            title={semanticMode ? 'Treci la căutare clasică' : 'Treci la căutare semantică cu AI'}
+            title={t('home.semanticSearchHint')}
             style={{
               ...selectStyle(darkMode), cursor: 'pointer',
               background: semanticMode ? 'rgba(120, 40, 200, 0.15)' : 'transparent',
@@ -277,32 +279,20 @@ export default function HomePage() {
               whiteSpace: 'nowrap', fontWeight: semanticMode ? 600 : 400,
             }}
           >
-            ✦ Semantic{semanticMode ? ' ON' : ''}
+            ✦ {t('home.semanticSearch')}{semanticMode ? ' ON' : ''}
           </button>
         </div>
 
-        {/* Toggle-uri rapide: clasa mea / școala mea. Apar doar dacă userul are
-            datele setate în profil. */}
         {user && (user.grade || user.school) && !semanticMode && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             {user.grade && (
-              <button
-                onClick={toggleMyClass}
-                style={chipStyle(darkMode, myClassActive)}
-                title={myClassActive ? 'Dezactivează filtrul' : 'Doar notițe din clasa a ' + user.grade + '-a'}
-              >
-                🎓 Clasa mea (a {user.grade}-a)
-                {myClassActive && ' ✓'}
+              <button onClick={toggleMyClass} style={chipStyle(darkMode, myClassActive)}>
+                🎓 {t('common.grade')}: {user.grade}{myClassActive && ' ✓'}
               </button>
             )}
             {user.school && (
-              <button
-                onClick={toggleMySchool}
-                style={chipStyle(darkMode, mySchoolActive)}
-                title={mySchoolActive ? 'Dezactivează filtrul' : 'Doar notițe de la ' + user.school}
-              >
-                🏫 Școala mea
-                {mySchoolActive && ' ✓'}
+              <button onClick={toggleMySchool} style={chipStyle(darkMode, mySchoolActive)}>
+                🏫 {t('auth.school')}{mySchoolActive && ' ✓'}
               </button>
             )}
           </div>
@@ -311,15 +301,15 @@ export default function HomePage() {
         {/* Mod semantic */}
         {semanticMode && (
           <>
-            {semanticLoading && <p style={{ color: '#888' }}>Se caută semantic...</p>}
-            {semanticError && <p style={{ color: 'red' }}>Eroare: {semanticError}</p>}
+            {semanticLoading && <p style={{ color: '#888' }}>{t('home.semanticSearching')}</p>}
+            {semanticError && <p style={{ color: 'red' }}>{t('common.error')}: {semanticError}</p>}
             {!semanticLoading && !semanticError && searchInput.trim() && (
               <>
                 <p style={{ color: '#888', fontSize: 14, marginBottom: 12 }}>
-                  {semanticResults.length} rezultate semantice
+                  {semanticResults.length}
                 </p>
                 {semanticResults.length === 0 ? (
-                  <p style={{ color: '#888' }}>Niciun rezultat. Încearcă o altă formulare.</p>
+                  <p style={{ color: '#888' }}>{t('home.noResults')}</p>
                 ) : (
                   <div className="responsive-cards-grid" style={gridStyle}>
                     {semanticResults.map(note => (
@@ -330,9 +320,7 @@ export default function HomePage() {
               </>
             )}
             {!searchInput.trim() && (
-              <p style={{ color: '#888', fontSize: 14 }}>
-                Scrie o propoziție sau idee pentru a căuta semantic. Ex: "legile lui Newton", "fotosinteza la plante".
-              </p>
+              <p style={{ color: '#888', fontSize: 14 }}>{t('home.semanticSearchHint')}</p>
             )}
           </>
         )}
@@ -340,62 +328,57 @@ export default function HomePage() {
         {/* Mod clasic */}
         {!semanticMode && (
           <>
-            {/* Istoricul de vizite a fost mutat în pagina dedicată /history. */}
-
-            {/* Notițe recente — top 3 */}
             {recentNotes.length > 0 && !searchInput && !hasActiveFilters && (
               <section style={{ marginBottom: 32 }}>
-                <h2 style={sectionTitleStyle}>Notițe recente</h2>
+                <h2 style={sectionTitleStyle}>{t('home.sortNewest')}</h2>
                 <div className="responsive-cards-grid" style={gridStyle}>
                   {recentNotes.map(note => <NoteCard key={note.id} note={note} />)}
                 </div>
               </section>
             )}
 
-            {/* Toate notițele — paginate */}
             <section>
               <h2 style={sectionTitleStyle}>
-                {searchInput || hasActiveFilters ? 'Rezultate' : 'Toate notițele'}
+                {searchInput || hasActiveFilters ? t('common.search') : t('home.title')}
               </h2>
 
-              {/* Bară orizontală cu filtre active — chip-uri removable */}
               {hasActiveFilters && (
                 <div style={activeFiltersBarStyle(darkMode)}>
                   {subject && !subjectIsNeutral && (
-                    <ActiveChip label={`Materie: ${subject}`} onRemove={() => setParam('subject', defaultSubject || '')} darkMode={darkMode} />
+                    <ActiveChip label={`${t('common.subject')}: ${subject}`} onRemove={() => setParam('subject', defaultSubject || '')} darkMode={darkMode} />
                   )}
                   {gradeLevel && !gradeIsNeutral && (
-                    <ActiveChip label={`Clasa a ${gradeLevel}-a`} onRemove={() => setParam('gradeLevel', defaultGrade != null ? String(defaultGrade) : '')} darkMode={darkMode} />
+                    <ActiveChip label={`${t('common.grade')}: ${gradeLevel}`} onRemove={() => setParam('gradeLevel', defaultGrade != null ? String(defaultGrade) : '')} darkMode={darkMode} />
                   )}
                   {type && (
-                    <ActiveChip label={`Tip: ${NOTE_TYPES.find(t => t.value === type)?.label || type}`} onRemove={() => setParam('type', '')} darkMode={darkMode} />
+                    <ActiveChip label={`${t('common.type')}: ${NOTE_TYPES.find(nt => nt.value === type)?.label || type}`} onRemove={() => setParam('type', '')} darkMode={darkMode} />
                   )}
                   {school && (
-                    <ActiveChip label={`Școala: ${school}`} onRemove={() => setParam('school', '')} darkMode={darkMode} />
+                    <ActiveChip label={`${t('auth.school')}: ${school}`} onRemove={() => setParam('school', '')} darkMode={darkMode} />
                   )}
                   {tagParam && (
                     <ActiveChip label={`#${tagParam}`} onRemove={() => setParam('tag', '')} darkMode={darkMode} />
                   )}
                   {sort !== 'recent' && (
-                    <ActiveChip label={`Sortare: ${sort === 'popular' ? 'populare' : 'rating'}`} onRemove={() => setParam('sort', 'recent')} darkMode={darkMode} />
+                    <ActiveChip label={`${t('home.sortBy')}: ${sort === 'popular' ? t('home.sortPopular') : t('home.sortBest')}`} onRemove={() => setParam('sort', 'recent')} darkMode={darkMode} />
                   )}
                   <button onClick={clearFilters} style={resetAllBtnStyle(darkMode)}>
-                    Resetează tot
+                    {t('home.resetFilters')}
                   </button>
                 </div>
               )}
 
-              {loading && <p>Se încarcă...</p>}
-              {error && <p style={{ color: 'red' }}>Eroare: {error}</p>}
+              {loading && <p>{t('home.loadingNotes')}</p>}
+              {error && <p style={{ color: 'red' }}>{t('common.error')}: {error}</p>}
 
               {!loading && !error && (
                 <>
                   <p style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
-                    {result.total} {result.total === 1 ? 'notiță' : 'notițe'}
+                    {result.total}
                   </p>
 
                   {result.notes.length === 0 ? (
-                    <p>Nicio notiță găsită. Fii primul!</p>
+                    <p>{t('home.noResults')}</p>
                   ) : (
                     <div ref={allNotesGridRef} className="responsive-cards-grid" style={gridStyle}>
                       {result.notes.map(note => <NoteCard key={note.id} note={note} />)}
@@ -405,13 +388,13 @@ export default function HomePage() {
                   {result.totalPages > 1 && (
                     <div style={paginationStyle}>
                       <button onClick={() => setPage(page - 1)} disabled={page <= 1} style={pageButtonStyle(darkMode)}>
-                        ‹ Anterior
+                        ‹ {t('common.previous')}
                       </button>
                       <span style={{ padding: '6px 12px', color: '#888', fontSize: 14 }}>
-                        Pagina {page} din {result.totalPages}
+                        {page} / {result.totalPages}
                       </span>
                       <button onClick={() => setPage(page + 1)} disabled={page >= result.totalPages} style={pageButtonStyle(darkMode)}>
-                        Următor ›
+                        {t('common.next')} ›
                       </button>
                     </div>
                   )}
@@ -438,7 +421,7 @@ function ActiveChip({ label, onRemove, darkMode }) {
   );
 }
 
-function TagFilter({ value, onChange, darkMode }) {
+function TagFilter({ value, onChange, darkMode, t }) {
   const [tags, setTags] = useState([]);
   useEffect(() => {
     api.get('/notes/tags', { params: { limit: 30 } })
@@ -457,10 +440,10 @@ function TagFilter({ value, onChange, darkMode }) {
         fontSize: 14,
       }}
     >
-      <option value="">Toate tag-urile</option>
-      {tags.map(t => (
-        <option key={t.id} value={t.name}>
-          {t.isOfficial ? '★ ' : ''}#{t.name}{t.noteCount > 0 ? ` (${t.noteCount})` : ''}
+      <option value="">{t ? t('common.all') : 'All'}</option>
+      {tags.map(tag => (
+        <option key={tag.id} value={tag.name}>
+          {tag.isOfficial ? '★ ' : ''}#{tag.name}{tag.noteCount > 0 ? ` (${tag.noteCount})` : ''}
         </option>
       ))}
     </select>

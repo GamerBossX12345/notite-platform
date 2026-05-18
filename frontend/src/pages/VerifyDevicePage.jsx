@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -7,6 +8,7 @@ export default function VerifyDevicePage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { darkMode, updateDarkMode } = useAuth();
+  const { t } = useTranslation();
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState(null);
 
@@ -14,7 +16,7 @@ export default function VerifyDevicePage() {
     const token = searchParams.get('token');
     if (!token) {
       setStatus('error');
-      setError('Lipsește tokenul de verificare din URL.');
+      setError(t('auth.deviceVerifyError'));
       return;
     }
 
@@ -25,15 +27,15 @@ export default function VerifyDevicePage() {
       })
       .catch(err => {
         setStatus('error');
-        setError(err.response?.data?.error || 'Verificare eșuată.');
+        setError(err.response?.data?.error || t('auth.deviceVerifyError'));
       });
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, t]);
 
   return (
     <div style={{ maxWidth: 520, margin: '64px auto', textAlign: 'center', padding: 24, position: 'relative' }}>
       <button
         onClick={() => updateDarkMode(!darkMode)}
-        title={darkMode ? 'Treci la modul luminos' : 'Treci la modul întunecat'}
+        title={darkMode ? t('nav.darkOn') : t('nav.darkOff')}
         style={themeToggleStyle(darkMode)}
       >
         {darkMode ? '🌙' : '☀️'}
@@ -42,29 +44,26 @@ export default function VerifyDevicePage() {
         {status === 'loading' && (
           <>
             <div style={{ fontSize: 48, marginBottom: 12 }}>⏳</div>
-            <h2 style={titleStyle(darkMode)}>Se verifică dispozitivul...</h2>
+            <h2 style={titleStyle(darkMode)}>{t('auth.deviceVerifyTitle')}...</h2>
           </>
         )}
 
         {status === 'success' && (
           <>
             <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
-            <h2 style={titleStyle(darkMode)}>Dispozitiv verificat!</h2>
-            <p style={{ color: darkMode ? '#a89bc4' : '#666', margin: 0 }}>
-              Te conducem înapoi la login...
-            </p>
+            <h2 style={titleStyle(darkMode)}>{t('auth.deviceVerified')}</h2>
           </>
         )}
 
         {status === 'error' && (
           <>
             <div style={{ fontSize: 48, marginBottom: 12 }}>❌</div>
-            <h2 style={titleStyle(darkMode)}>Verificare eșuată</h2>
+            <h2 style={titleStyle(darkMode)}>{t('common.error')}</h2>
             <p style={{ color: darkMode ? '#ff9999' : '#b91c1c', marginBottom: 16 }}>
               {error}
             </p>
             <Link to="/login" style={{ color: darkMode ? '#c9a8ff' : '#6366f1', textDecoration: 'none' }}>
-              ← Înapoi la login
+              ← {t('auth.goToLogin')}
             </Link>
           </>
         )}

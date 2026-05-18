@@ -2,11 +2,13 @@
 // Suportă bookmark — apare doar dacă userul e logat.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 export function NoteCard({ note, similarity, showSaveButton = true }) {
   const { user, darkMode } = useAuth();
+  const { t } = useTranslation();
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -44,14 +46,14 @@ export function NoteCard({ note, similarity, showSaveButton = true }) {
     <div className="note-card" data-flip-id={note.id} style={cardStyle(darkMode)}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         {similarity != null ? (
-          <span style={similarityBadgeStyle(similarity)}>{Math.round(similarity * 100)}% potrivire</span>
+          <span style={similarityBadgeStyle(similarity)}>{Math.round(similarity * 100)}%</span>
         ) : <span />}
         {user && showSaveButton && (
           <button
             onClick={toggleSave}
             disabled={saving}
-            title={saved ? 'Elimină din salvate' : 'Salvează'}
-            aria-label={saved ? 'Elimină din salvate' : 'Salvează'}
+            title={saved ? t('saved.remove') : t('note.save')}
+            aria-label={saved ? t('saved.remove') : t('note.save')}
             style={saveBtnStyle(darkMode, saved, saving)}
           >
             {saved ? '❤️' : '🤍'}
@@ -62,16 +64,16 @@ export function NoteCard({ note, similarity, showSaveButton = true }) {
         <h3 style={{ margin: '4px 0 0', fontSize: 16, lineHeight: 1.3 }}>{note.title}</h3>
       </Link>
       <p style={{ margin: '6px 0 4px', color: darkMode ? '#a89bc4' : '#888', fontSize: 13 }}>
-        {note.subject} • clasa a {note.gradeLevel}-a
+        {note.subject} • {t('common.grade')} {note.gradeLevel}
       </p>
       <p style={{ margin: '0 0 4px', color: darkMode ? '#867aa3' : '#aaa', fontSize: 12 }}>{note.type}</p>
       <p style={{ margin: 0, fontSize: 12, color: darkMode ? '#a89bc4' : '#888' }}>
-        de{' '}
+        {t('note.by')}{' '}
         <Link to={`/profile/${note.author.username}`} style={{ color: 'inherit' }}>
           {note.author.username}
         </Link>
         {note.author.isTeacher && (
-          <span title="Profesor verificat" style={{ marginLeft: 4, color: '#22c55e' }}>✓</span>
+          <span style={{ marginLeft: 4, color: '#22c55e' }}>✓</span>
         )}
         {note.ratingCount > 0 && (
           <> • ⭐ {note.avgRating.toFixed(1)} ({note.ratingCount})</>
@@ -79,8 +81,8 @@ export function NoteCard({ note, similarity, showSaveButton = true }) {
       </p>
       {Array.isArray(note.tags) && note.tags.length > 0 && (
         <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          {note.tags.slice(0, 4).map(t => {
-            const tag = t.tag || t;
+          {note.tags.slice(0, 4).map(tg => {
+            const tag = tg.tag || tg;
             return (
               <span key={tag.id || tag.name} style={tagPillStyle(darkMode, tag.isOfficial)}>
                 #{tag.name}

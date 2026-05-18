@@ -1,6 +1,7 @@
 // /requests — sistem de cereri. Userii cer notițe care lipsesc, alții le împlinesc.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -11,14 +12,14 @@ const SUBJECTS = [
 ];
 const GRADE_LEVELS = Array.from({ length: 8 }, (_, i) => i + 5);
 
-const STATUS_TABS = [
-  { key: 'OPEN',      label: 'Deschise' },
-  { key: 'FULFILLED', label: 'Împlinite' },
-  { key: 'CLOSED',    label: 'Închise' },
-];
-
 export default function RequestsPage() {
   const { user, darkMode } = useAuth();
+  const { t } = useTranslation();
+  const STATUS_TABS = [
+    { key: 'OPEN',      label: t('requests.open') },
+    { key: 'FULFILLED', label: t('requests.fulfilled') },
+    { key: 'CLOSED',    label: t('common.close') },
+  ];
   const [status, setStatus] = useState('OPEN');
   const [data, setData] = useState({ requests: [], total: 0, totalPages: 1 });
   const [page, setPage] = useState(1);
@@ -45,17 +46,16 @@ export default function RequestsPage() {
     <div style={{ maxWidth: 820, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <h1 style={{ fontSize: 28, margin: 0, color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>
-          📋 Cereri de notițe
+          📋 {t('requests.title')}
         </h1>
         {user && (
           <button onClick={() => setShowForm(s => !s)} style={primaryBtn(darkMode)}>
-            {showForm ? 'Anulează' : '+ Cerere nouă'}
+            {showForm ? t('common.cancel') : '+ ' + t('requests.newRequest')}
           </button>
         )}
       </div>
       <p style={{ color: darkMode ? '#a89bc4' : '#666', fontSize: 14, margin: '8px 0 20px' }}>
-        Nu găsești o notiță de care ai nevoie? Cere-o aici — alți utilizatori o pot împlini
-        legând o notiță existentă.
+        {t('requests.subtitle')}
       </p>
 
       {showForm && user && (
@@ -65,32 +65,31 @@ export default function RequestsPage() {
         />
       )}
 
-      {/* Tab-uri status + filtru "ale mele" */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-        {STATUS_TABS.map(t => (
+        {STATUS_TABS.map(tab => (
           <button
-            key={t.key}
-            onClick={() => setStatus(t.key)}
-            style={tabBtn(darkMode, status === t.key)}
+            key={tab.key}
+            onClick={() => setStatus(tab.key)}
+            style={tabBtn(darkMode, status === tab.key)}
           >
-            {t.label}
+            {tab.label}
           </button>
         ))}
         {user && (
           <label style={{ marginLeft: 'auto', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, color: darkMode ? '#a89bc4' : '#666', cursor: 'pointer' }}>
             <input type="checkbox" checked={mineOnly} onChange={e => setMineOnly(e.target.checked)} style={{ accentColor: '#a855f7' }} />
-            Doar cererile mele
+            {t('menu.myNotes')}
           </label>
         )}
       </div>
 
-      {loading && <p>Se încarcă...</p>}
-      {error && <p style={{ color: '#ef4444' }}>Eroare: {error}</p>}
+      {loading && <p>{t('common.loading')}</p>}
+      {error && <p style={{ color: '#ef4444' }}>{t('common.error')}: {error}</p>}
 
       {!loading && !error && (
         data.requests.length === 0 ? (
           <p style={{ color: darkMode ? '#a89bc4' : '#666' }}>
-            Nicio cerere {status === 'OPEN' ? 'deschisă' : status === 'FULFILLED' ? 'împlinită' : 'închisă'}.
+            {t('requests.empty')}
           </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -103,11 +102,11 @@ export default function RequestsPage() {
 
       {data.totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 20 }}>
-          <button onClick={() => setPage(p => p - 1)} disabled={page <= 1} style={pageBtn(darkMode)}>‹ Anterior</button>
+          <button onClick={() => setPage(p => p - 1)} disabled={page <= 1} style={pageBtn(darkMode)}>‹ {t('common.previous')}</button>
           <span style={{ padding: '6px 12px', color: darkMode ? '#a89bc4' : '#888', fontSize: 14 }}>
-            Pagina {page} / {data.totalPages}
+            {page} / {data.totalPages}
           </span>
-          <button onClick={() => setPage(p => p + 1)} disabled={page >= data.totalPages} style={pageBtn(darkMode)}>Următor ›</button>
+          <button onClick={() => setPage(p => p + 1)} disabled={page >= data.totalPages} style={pageBtn(darkMode)}>{t('common.next')} ›</button>
         </div>
       )}
     </div>

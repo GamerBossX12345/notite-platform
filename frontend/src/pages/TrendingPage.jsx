@@ -1,12 +1,14 @@
 // /trending — top notițe după "hot score" (engagement + recență), din ultimele
 // 30 de zile. Distinct de "Cele mai populare" (popular all-time).
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../hooks/useAuth.js';
 import { api } from '../api/client.js';
 import { NoteCard } from '../components/NoteCard.jsx';
 
 export default function TrendingPage() {
   const { darkMode } = useAuth();
+  const { t } = useTranslation();
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,21 +24,18 @@ export default function TrendingPage() {
   return (
     <div style={{ maxWidth: 880, margin: '0 auto' }}>
       <h1 style={{ fontSize: 28, marginBottom: 8, color: darkMode ? '#e8e0ff' : '#1a1a1a' }}>
-        🔥 În tendințe
+        🔥 {t('trending.title')}
       </h1>
       <p style={{ color: darkMode ? '#a89bc4' : '#666', fontSize: 14, marginBottom: 24 }}>
-        Cele mai apreciate notițe din ultimele 30 de zile — combinăm vizualizări, rating-uri
-        și recență. Diferit de „cele mai populare" care arată clasamentul de toate timpurile.
+        {t('trending.subtitle')}
       </p>
 
-      {loading && <p>Se încarcă...</p>}
-      {error && <p style={{ color: '#ef4444' }}>Eroare: {error}</p>}
+      {loading && <p>{t('common.loading')}</p>}
+      {error && <p style={{ color: '#ef4444' }}>{t('common.error')}: {error}</p>}
 
       {!loading && !error && (
         notes.length === 0 ? (
-          <p style={{ color: darkMode ? '#a89bc4' : '#666' }}>
-            Nicio notiță în tendințe momentan. Revino după ce se mai adaugă conținut.
-          </p>
+          <p style={{ color: darkMode ? '#a89bc4' : '#666' }}>{t('trending.empty')}</p>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
             {notes.map((note, i) => (

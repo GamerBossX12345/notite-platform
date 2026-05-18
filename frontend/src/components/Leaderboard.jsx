@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../api/client.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { TeacherBadge } from './Badges.jsx';
@@ -14,6 +15,7 @@ const PODIUM_STYLES = [
 
 export default function Leaderboard({ featuredAuthor }) {
   const { darkMode, leaderboardHidden } = useAuth();
+  const { t } = useTranslation();
   const [entries, setEntries] = useState([]);
 
   useEffect(() => {
@@ -52,11 +54,10 @@ export default function Leaderboard({ featuredAuthor }) {
     <div className="leaderboard-wrapper" style={wrapperStyle} aria-hidden={leaderboardHidden}>
       {featured && (
         <>
-          <h4 style={sectionLabelStyle}>Autorul:</h4>
+          <h4 style={sectionLabelStyle}>{t('note.by')}:</h4>
           <Link
             to={`/profile/${featured.username}`}
             style={{ textDecoration: 'none', color: 'inherit' }}
-            title={`Autorul acestei notițe: ${featured.username}`}
           >
             <div style={featuredStyle(darkMode)}>
               <span style={{ fontSize: 14 }}>✨</span>
@@ -74,7 +75,7 @@ export default function Leaderboard({ featuredAuthor }) {
         </>
       )}
 
-      <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600 }}>🏆 Top contribuitori</h3>
+      <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600 }}>🏆 {t('leaderboard.title')}</h3>
 
       <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {rest.slice(0, featured ? 7 : 8).map(entry => {
